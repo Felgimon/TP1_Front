@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="ballGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7A3D"/>
+      <stop offset="100%" stop-color="#E8450E"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="28" fill="url(#ballGrad)"/>
+  <path d="M32 4 L32 60" stroke="#1A1A2E" stroke-width="2.4" stroke-linecap="round" opacity="0.45"/>
+  <path d="M4 32 L60 32" stroke="#1A1A2E" stroke-width="2.4" stroke-linecap="round" opacity="0.45"/>
+  <path d="M7 14 C20 21, 44 21, 57 14" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <path d="M7 50 C20 43, 44 43, 57 50" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <ellipse cx="22" cy="21" rx="8" ry="5" fill="white" opacity="0.16" transform="rotate(-25 22 21)"/>
+</svg>

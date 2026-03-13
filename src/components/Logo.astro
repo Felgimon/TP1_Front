@@ -1,0 +1,45 @@
+---
+// Logo.astro — COURTSIDE NBA Tracker logo component
+// Usage: <Logo variant="full" /> | <Logo variant="icon" /> | <Logo variant="stacked" />
+// Props:
+//   variant: 'full' | 'full-light' | 'icon' | 'stacked' (default: 'full')
+//   class: optional CSS class
+//   width: optional width (e.g. '200px', '10rem')
+
+interface Props {
+  variant?: 'full' | 'full-light' | 'icon' | 'stacked';
+  class?: string;
+  width?: string;
+}
+
+const { variant = 'full', class: className, width } = Astro.props;
+
+// Import all variants as raw SVG
+import fullLogo from '../assets/logos/courtside-full.svg?raw';
+import fullLightLogo from '../assets/logos/courtside-full-light.svg?raw';
+import iconLogo from '../assets/logos/courtside-icon.svg?raw';
+import stackedLogo from '../assets/logos/courtside-stacked.svg?raw';
+
+const logos: Record<string, string> = {
+  full: fullLogo,
+  'full-light': fullLightLogo,
+  icon: iconLogo,
+  stacked: stackedLogo,
+};
+
+const svg = logos[variant] || logos.full;
+const style = width ? `width: ${width}; height: auto;` : undefined;
+---
+
+<div class:list={['courtside-logo', className]} style={style} set:html={svg} role="img" aria-label="COURTSIDE NBA Tracker" />
+
+<style>
+  .courtside-logo {
+    display: inline-flex;
+    align-items: center;
+  }
+  .courtside-logo :global(svg) {
+    width: 100%;
+    height: auto;
+  }
+</style>

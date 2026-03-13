@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 80" fill="none">
+  <defs>
+    <linearGradient id="ballGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7A3D"/>
+      <stop offset="100%" stop-color="#E8450E"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF7A3D"/>
+      <stop offset="60%" stop-color="#E8450E"/>
+      <stop offset="100%" stop-color="#C43509"/>
+    </linearGradient>
+    <filter id="ballGlow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Basketball icon -->
+  <g filter="url(#ballGlow)">
+    <circle cx="36" cy="40" r="26" fill="url(#ballGrad)"/>
+  </g>
+  <!-- Ball seam lines -->
+  <path d="M36 14 L36 66" stroke="#1A1A2E" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+  <path d="M10 40 L62 40" stroke="#1A1A2E" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+  <path d="M13 23 C27 29, 45 29, 59 23" stroke="#1A1A2E" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <path d="M13 57 C27 51, 45 51, 59 57" stroke="#1A1A2E" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <!-- Shine highlight -->
+  <ellipse cx="27" cy="29" rx="7" ry="4.5" fill="white" opacity="0.16" transform="rotate(-25 27 29)"/>
+
+  <!-- COURT text -->
+  <text x="76" y="36" font-family="'Helvetica Neue', 'Arial Black', Arial, sans-serif" font-weight="900" font-size="29" fill="#F0F0F0" letter-spacing="-0.5">COURT</text>
+  <!-- SIDE text in gradient -->
+  <text x="194" y="36" font-family="'Helvetica Neue', 'Arial Black', Arial, sans-serif" font-weight="900" font-size="29" fill="url(#accentGrad)" letter-spacing="-0.5">SIDE</text>
+
+  <!-- NBA TRACKER subtitle -->
+  <text x="76" y="56" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="500" font-size="11.5" fill="#777" letter-spacing="5.5">NBA TRACKER</text>
+
+  <!-- Accent underline -->
+  <rect x="76" y="63" width="48" height="2.5" rx="1.25" fill="url(#accentGrad)"/>
+</svg>
