@@ -1,10 +1,4 @@
 ---
-// Logo.astro — COURTSIDE NBA Tracker logo component
-// Usage: <Logo variant="full" /> | <Logo variant="icon" /> | <Logo variant="stacked" />
-// Props:
-//   variant: 'full' | 'full-light' | 'icon' | 'stacked' (default: 'full')
-//   class: optional CSS class
-//   width: optional width (e.g. '200px', '10rem')
 
 interface Props {
   variant?: 'full' | 'full-light' | 'icon' | 'stacked';
@@ -15,10 +9,10 @@ interface Props {
 const { variant = 'full', class: className, width } = Astro.props;
 
 // Import all variants as raw SVG
-import fullLogo from '../assets/logos/courtside-full.svg?raw';
-import fullLightLogo from '../assets/logos/courtside-full-light.svg?raw';
-import iconLogo from '../assets/logos/courtside-icon.svg?raw';
-import stackedLogo from '../assets/logos/courtside-stacked.svg?raw';
+import fullLogo from '../assets/courtside-full.svg?raw';
+import fullLightLogo from '../assets/courtside-full-light.svg?raw';
+import iconLogo from '../assets/courtside-icon.svg?raw';
+import stackedLogo from '../assets/courtside-stacked.svg?raw';
 
 const logos: Record<string, string> = {
   full: fullLogo,

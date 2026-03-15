@@ -1,5 +1,6 @@
 ---
-import Header from '../components/Card.astro';
+//http://localhost:4321
+import Header from '../components/Header.astro';
 ---
 
 <html lang="en">
@@ -9,10 +10,26 @@ import Header from '../components/Card.astro';
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
+		<title>Court Side</title>
 	</head>
 	<body>
-		<Header titulo = "NBA Tracker" img_variant = "icon" />
-		<h1>Astro</h1>
+		<Header/>
 	</body>
 </html>
+
+<style is:global>
+
+	* {
+	margin: 0;
+	margin-block: 0;
+	padding: 0;
+	box-sizing: border-box;
+	}
+	body{
+		width: 100vw;
+		height: 100vh;
+		background-color: #1A1A2E;
+		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	}
+
+

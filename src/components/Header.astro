@@ -1,9 +1,58 @@
 ---
 import Logo from '../components/Logo.astro';
-const {titulo, img_variant} = Astro.props;
 //Hay errores todavía
 ---
 
 <nav class = "Header">
-    <Logo variant={img_variant} width="32px" />
+    <Logo variant=icon width="4vw" />
+    <div class = "Header-text">
+        <h1>
+            <span class="text-white">COURT </span>
+            <span class="text-gradient">SIDE</span>
+        </h1>
+        <h3><span class="nba-underline">NBA</span> TRACKER</h3>
+    </div>
 </nav>
+
+<style>
+
+    .Header{
+        display: flex;
+        justify-content: center;
+        gap: 1vw;
+        height: 10%;
+        width: 100%;
+    }
+
+    .text-white {
+        color: #F0F0F0;
+    }
+
+    h1 {
+        font-weight: 900;
+        letter-spacing: 2px;
+    }
+
+    h3 {
+        font-weight: 400;
+        letter-spacing: 5px;
+        color: #f0f0f0a4;
+    }
+
+    .text-gradient {
+        background: linear-gradient(90deg, #e85d04, #f48c06);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .nba-underline {
+        border-bottom: 3px solid #e85d04;
+        padding-bottom: 2px;
+    }
+    
+    .Header-text{
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
