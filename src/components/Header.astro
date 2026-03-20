@@ -1,26 +1,33 @@
 ---
 import Logo from '../components/Logo.astro';
-//Hay errores todavía
 ---
 
-<nav class = "Header">
-    <Logo variant=icon width="4vw" />
-    <div class = "Header-text">
+<nav class="Header">
+    <Logo variant="icon" width="4vw" />
+    <div class="Header-text">
         <h1>
             <span class="text-white">COURT </span>
             <span class="text-gradient">SIDE</span>
         </h1>
         <h3><span class="nba-underline">NBA</span> TRACKER</h3>
     </div>
+    <div class='invisible'></div>
 </nav>
 
 <style>
 
-    .Header{
+    .invisible {
+        opacity: 0;
+        aria-hidden: true;
+        width: 4vw;
+    }
+
+    .Header {
         display: flex;
         flex-direction: row;
         justify-content: center;
         height: 15%;
+        gap: 0.3vw;
         width: 100%;
     }
 
@@ -47,12 +54,13 @@ import Logo from '../components/Logo.astro';
     }
 
     .nba-underline {
-        border-bottom: 3px solid #e85d04;
-        padding-bottom: 2px;
+        border-bottom: 0.15vw solid #e85d04;
+        padding-bottom: 0.15vw;
     }
     
-    .Header-text{
+    .Header-text {
         display: flex;
         flex-direction: column;
         justify-content: center;
     }
+</style>
