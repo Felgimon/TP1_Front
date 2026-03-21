@@ -1,12 +1,11 @@
 ---
 // ScoreBoard.astro
 // Componente orquestador del dashboard NBA.
-// Importa sub-componentes presentacionales y maneja toda la lógica client-side.
+// Consume API routes locales que hacen proxy a NBA.com (sin API key, sin rate limit).
 import TabBar from './TabBar.astro';
 import GamesGrid from './GamesGrid.astro';
 import PlayerSearch from './PlayerSearch.astro';
 import PlayerSpotlight from './PlayerSpotlight.astro';
-import ApiKeyBar from './ApiKeyBar.astro';
 ---
 
 <section class="scoreboard">
@@ -14,32 +13,12 @@ import ApiKeyBar from './ApiKeyBar.astro';
 	<GamesGrid />
 	<PlayerSearch />
 	<PlayerSpotlight />
-	<ApiKeyBar />
 </section>
 
 <script>
 // ==========================================================
-//  COURTSIDE — NBA SCOREBOARD CLIENT
+//  COURTSIDE — NBA SCOREBOARD (NBA.com proxy)
 // ==========================================================
-
-const API_BASE = 'https://api.balldontlie.io/nba/v1';
-const STORAGE_KEY = 'courtside_api_key';
-
-// ---- State ----
-let apiKey = localStorage.getItem(STORAGE_KEY) || '';
-let searchTimeout: ReturnType<typeof setTimeout> | null = null;
-
-// ---- Rate limit queue (free tier = 5 req/min) ----
-const REQUEST_GAP_MS = 1500; // 1.5s entre requests → máx 40/min, bien dentro del límite
-let lastRequestTime = 0;
-
-async function rateLimitedFetch(url: string): Promise<Response> {
-	const now = Date.now();
-	const wait = Math.max(0, REQUEST_GAP_MS - (now - lastRequestTime));
-	if (wait > 0) await new Promise(r => setTimeout(r, wait));
-	lastRequestTime = Date.now();
-	return fetch(url, { headers: { 'Authorization': apiKey } });
-}
 
 // ---- DOM refs ----
 const tabs = document.querySelectorAll('.tab') as NodeListOf<HTMLButtonElement>;
@@ -50,16 +29,8 @@ const playerSearch = document.getElementById('player-search') as HTMLInputElemen
 const playerResults = document.getElementById('player-results') as HTMLElement;
 const spotlight = document.getElementById('spotlight') as HTMLElement;
 const spotlightCard = document.getElementById('spotlight-card') as HTMLElement;
-const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
-const apiKeySave = document.getElementById('api-key-save') as HTMLButtonElement;
 
-// ---- API helper (con rate limit) ----
-async function apiFetch(endpoint: string): Promise<any> {
-	const res = await rateLimitedFetch(`${API_BASE}${endpoint}`);
-	if (res.status === 429) throw new Error('RATE_LIMIT');
-	if (!res.ok) throw new Error(`API ${res.status}`);
-	return res.json();
-}
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // ---- TABS ----
 tabs.forEach(tab => {
@@ -74,107 +45,85 @@ tabs.forEach(tab => {
 	});
 });
 
-// ---- FORMAT helpers ----
-function getTeamAbbr(team: any): string {
-	return team.abbreviation || team.name?.substring(0, 3).toUpperCase() || '???';
-}
-
-function formatGameStatus(game: any): { label: string; detail: string; class: string } {
-	const status = game.status;
-
-	// Final
-	if (status === 'Final') {
-		return { label: 'FINAL', detail: 'FT', class: 'status-final' };
-	}
-
-	// Upcoming: status es un timestamp ISO (ej: "2025-03-21T23:00:00Z")
-	// Se detecta porque parsea como fecha válida y tiene formato ISO
-	if (status && /^\d{4}-\d{2}-\d{2}T/.test(status)) {
-		const date = new Date(status);
-		const timeStr = !isNaN(date.getTime())
-			? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-			: 'TBD';
-		return { label: 'UPCOMING', detail: timeStr, class: 'status-upcoming' };
-	}
-
-	// In Progress / cualquier otro status con periodo activo → LIVE
-	if (status === 'In Progress' || (game.period && game.period > 0)) {
-		return { label: 'LIVE', detail: game.period ? `Q${game.period} ${game.time || ''}`.trim() : '', class: 'status-live' };
-	}
-
-	// Fallback
-	return { label: 'UPCOMING', detail: status || 'TBD', class: 'status-upcoming' };
-}
-
 // ---- RENDER: Game card ----
 function renderGameCard(game: any): string {
-	const home = game.home_team;
-	const visitor = game.visitor_team;
-	const homeScore = game.home_team_score;
-	const visitorScore = game.visitor_team_score;
-	const { label, detail, class: statusClass } = formatGameStatus(game);
+	const home = game.homeTeam;
+	const away = game.awayTeam;
+	const statusCode = game.statusCode; // 1=upcoming, 2=live, 3=final
 
-	const isFinal = label === 'FINAL';
-	const isUpcoming = label === 'UPCOMING';
-	const homeWins = isFinal && homeScore > visitorScore;
-	const visitorWins = isFinal && visitorScore > homeScore;
+	if (statusCode === 1) {
+		// UPCOMING
+		const startDate = new Date(game.startTime);
+		const timeStr = !isNaN(startDate.getTime())
+			? startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+			: game.status || 'TBD';
 
-	if (isUpcoming) {
 		return `
 		<div class="game-card">
 			<div class="game-header">
-				<span class="game-status ${statusClass}">${label}</span>
-				<span class="game-detail">${detail}</span>
+				<span class="game-status">UPCOMING</span>
+				<span class="game-detail">${timeStr}</span>
 			</div>
 			<div class="game-matchup-upcoming">
 				<div class="team-center">
-					<div class="team-badge">${getTeamAbbr(visitor)}</div>
-					<span class="team-name">${visitor.full_name || visitor.name}</span>
+					<div class="team-badge">${away.abbr}</div>
+					<span class="team-name">${away.city} ${away.name}</span>
 				</div>
 				<span class="vs-label">VS</span>
 				<div class="team-center">
-					<div class="team-badge">${getTeamAbbr(home)}</div>
-					<span class="team-name">${home.full_name || home.name}</span>
+					<div class="team-badge">${home.abbr}</div>
+					<span class="team-name">${home.city} ${home.name}</span>
 				</div>
 			</div>
 		</div>`;
 	}
 
+	// LIVE or FINAL
+	const isLive = statusCode === 2;
+	const isFinal = statusCode === 3;
+	const homeWins = isFinal && home.score > away.score;
+	const awayWins = isFinal && away.score > home.score;
+	const statusLabel = isLive ? 'LIVE' : 'FINAL';
+	const detail = isLive
+		? `Q${game.period} ${game.clock}`
+		: 'FT';
+
 	return `
 	<div class="game-card">
 		<div class="game-header">
-			<span class="game-status ${statusClass}">${label}</span>
-			<span class="game-detail ${statusClass === 'status-live' ? 'detail-live' : ''}">${detail}</span>
+			<span class="game-status">${statusLabel}</span>
+			<span class="game-detail ${isLive ? 'detail-live' : ''}">${detail}</span>
 		</div>
 		<div class="game-row">
 			<div class="team-info">
-				<div class="team-badge">${getTeamAbbr(visitor)}</div>
-				<span class="team-name">${visitor.full_name || visitor.name}</span>
+				<div class="team-badge">${away.abbr}</div>
+				<span class="team-name">${away.city} ${away.name}</span>
 			</div>
-			<span class="score ${visitorWins ? 'score-winner' : ''}">${visitorScore ?? '-'}</span>
+			<span class="score ${awayWins ? 'score-winner' : ''}">${away.score}</span>
 		</div>
 		<div class="game-row">
 			<div class="team-info">
-				<div class="team-badge">${getTeamAbbr(home)}</div>
-				<span class="team-name">${home.full_name || home.name}</span>
+				<div class="team-badge">${home.abbr}</div>
+				<span class="team-name">${home.city} ${home.name}</span>
 			</div>
-			<span class="score ${homeWins ? 'score-winner' : ''}">${homeScore ?? '-'}</span>
+			<span class="score ${homeWins ? 'score-winner' : ''}">${home.score}</span>
 		</div>
 	</div>`;
 }
 
 // ---- RENDER: Player stat card ----
-function renderPlayerCard(player: any, stats: any): string {
-	const initials = `${(player.first_name || '?')[0]}${(player.last_name || '?')[0]}`;
-	const name = `${player.first_name} ${player.last_name}`;
-	const team = player.team?.full_name || 'Free Agent';
-	const number = player.jersey_number ? `  |  #${player.jersey_number}` : '';
+function renderPlayerCard(player: any): string {
+	const initials = `${(player.firstName || player.name?.[0] || '?')[0]}${(player.lastName || player.name?.split(' ')[1]?.[0] || '?')[0]}`.toUpperCase();
+	const name = player.name || `${player.firstName} ${player.lastName}`;
+	const team = [player.teamCity, player.teamName || player.team].filter(Boolean).join(' ') || 'Free Agent';
+	const number = player.jerseyNumber ? `  |  #${player.jerseyNumber}` : '';
 	const position = player.position ? `  |  ${player.position}` : '';
 
-	const pts = stats?.pts?.toFixed(1) ?? '--';
-	const reb = stats?.reb?.toFixed(1) ?? '--';
-	const ast = stats?.ast?.toFixed(1) ?? '--';
-	const fg = stats?.fg_pct != null ? (stats.fg_pct * 100).toFixed(1) : '--';
+	const s = player.seasonStats;
+	const pts = s?.pts?.toFixed(1) ?? '--';
+	const reb = s?.reb?.toFixed(1) ?? '--';
+	const ast = s?.ast?.toFixed(1) ?? '--';
+	const fg = s?.fgPct != null ? (s.fgPct * 100).toFixed(1) : '--';
 
 	return `
 	<div class="player-card">
@@ -208,50 +157,46 @@ function renderPlayerCard(player: any, stats: any): string {
 
 // ---- FETCH: Today's games ----
 async function loadGames() {
-	if (!apiKey) {
-		gamesGrid.innerHTML = '<div class="empty-state">Enter your API key below to load games</div>';
-		return;
-	}
 	try {
-		const today = new Date().toISOString().split('T')[0];
-		const data = await apiFetch(`/games?dates[]=${today}`);
-		const games = data.data || [];
+		const res = await fetch('/api/scoreboard');
+		const data = await res.json();
+		const games = data.games || [];
+
 		if (games.length === 0) {
 			gamesGrid.innerHTML = '<div class="empty-state">No games scheduled today</div>';
 			return;
 		}
+
 		gamesGrid.innerHTML = games.map(renderGameCard).join('');
-	} catch (err: any) {
-		const msg = err?.message === 'RATE_LIMIT'
-			? 'Rate limit reached (5 req/min on free tier). Wait a moment and reload.'
-			: 'Failed to load games. Check your API key.';
-		gamesGrid.innerHTML = `<div class="empty-state error">${msg}</div>`;
+	} catch {
+		gamesGrid.innerHTML = '<div class="empty-state error">Failed to load games</div>';
 	}
 }
 
 // ---- FETCH: Player spotlight ----
 async function loadSpotlight() {
-	if (!apiKey) {
-		spotlightCard.innerHTML = '<div class="empty-state small">Enter API key to see spotlight</div>';
-		return;
-	}
 	try {
-		const featuredPlayers = ['LeBron James', 'Stephen Curry', 'Nikola Jokic', 'Luka Doncic', 'Giannis Antetokounmpo', 'Jayson Tatum', 'Anthony Edwards', 'Victor Wembanyama'];
-		const pick = featuredPlayers[Math.floor(Math.random() * featuredPlayers.length)];
-		const searchData = await apiFetch(`/players?search=${encodeURIComponent(pick)}&per_page=1`);
-		const player = searchData.data?.[0];
-		if (!player) {
-			spotlightCard.innerHTML = '<div class="empty-state small">No player found</div>';
-			return;
+		// IDs de estrellas conocidas de NBA.com
+		const starIds = [
+			{ id: '2544', name: 'LeBron James' },
+			{ id: '201939', name: 'Stephen Curry' },
+			{ id: '203999', name: 'Nikola Jokic' },
+			{ id: '1629029', name: 'Luka Doncic' },
+			{ id: '203507', name: 'Giannis Antetokounmpo' },
+			{ id: '1628369', name: 'Jayson Tatum' },
+			{ id: '1630162', name: 'Anthony Edwards' },
+			{ id: '1641705', name: 'Victor Wembanyama' },
+		];
+		const pick = starIds[Math.floor(Math.random() * starIds.length)];
+
+		const res = await fetch(`/api/player-stats/${pick.id}`);
+		const data = await res.json();
+
+		if (data.player) {
+			spotlightCard.innerHTML = renderPlayerCard(data.player);
+		} else {
+			spotlightCard.innerHTML = '<div class="empty-state small">Could not load spotlight</div>';
 		}
-		const currentYear = new Date().getFullYear();
-		const season = new Date().getMonth() >= 9 ? currentYear : currentYear - 1;
-		let stats = null;
-		try {
-			const statsData = await apiFetch(`/season_averages?season=${season}&player_ids[]=${player.id}`);
-			stats = statsData.data?.[0] || null;
-		} catch { /* stats optional */ }
-		spotlightCard.innerHTML = renderPlayerCard(player, stats);
 	} catch {
 		spotlightCard.innerHTML = '<div class="empty-state small">Could not load spotlight</div>';
 	}
@@ -259,40 +204,38 @@ async function loadSpotlight() {
 
 // ---- FETCH: Search players ----
 async function searchPlayers(query: string) {
-	if (!apiKey) {
-		playerResults.innerHTML = '<div class="empty-state">Enter your API key below to search</div>';
-		return;
-	}
 	if (query.length < 2) {
 		playerResults.innerHTML = '<div class="empty-state">Type at least 2 characters</div>';
 		return;
 	}
+
 	playerResults.innerHTML = '<div class="loading"><div class="spinner"></div><span>Searching...</span></div>';
+
 	try {
-		const data = await apiFetch(`/players?search=${encodeURIComponent(query)}&per_page=5`);
-		const players = data.data || [];
+		const res = await fetch(`/api/players?search=${encodeURIComponent(query)}`);
+		const data = await res.json();
+		const players = data.players || [];
+
 		if (players.length === 0) {
 			playerResults.innerHTML = '<div class="empty-state">No players found</div>';
 			return;
 		}
-		const currentYear = new Date().getFullYear();
-		const season = new Date().getMonth() >= 9 ? currentYear : currentYear - 1;
-		const ids = players.map((p: any) => `player_ids[]=${p.id}`).join('&');
-		let statsMap: Record<number, any> = {};
-		try {
-			const statsData = await apiFetch(`/season_averages?season=${season}&${ids}`);
-			for (const s of (statsData.data || [])) {
-				statsMap[s.player_id] = s;
+
+		// Traer stats de cada jugador SECUENCIALMENTE (NBA.com bloquea muchos requests simultáneos)
+		const cards: string[] = [];
+		for (const p of players.slice(0, 5)) {
+			try {
+				const statsRes = await fetch(`/api/player-stats/${p.id}`);
+				const statsData = await statsRes.json();
+				cards.push(renderPlayerCard(statsData.player || { ...p, seasonStats: null }));
+			} catch {
+				cards.push(renderPlayerCard({ ...p, seasonStats: null }));
 			}
-		} catch { /* stats optional */ }
-		playerResults.innerHTML = players
-			.map((p: any) => renderPlayerCard(p, statsMap[p.id] || null))
-			.join('');
-	} catch (err: any) {
-		const msg = err?.message === 'RATE_LIMIT'
-			? 'Rate limit reached. Wait a moment and try again.'
-			: 'Search failed. Check your API key.';
-		playerResults.innerHTML = `<div class="empty-state error">${msg}</div>`;
+			// Mostrar resultados progresivamente
+			playerResults.innerHTML = cards.join('');
+		}
+	} catch {
+		playerResults.innerHTML = '<div class="empty-state error">Search failed</div>';
 	}
 }
 
@@ -301,54 +244,15 @@ playerSearch.addEventListener('input', () => {
 	if (searchTimeout) clearTimeout(searchTimeout);
 	searchTimeout = setTimeout(() => {
 		searchPlayers(playerSearch.value.trim());
-	}, 800);
+	}, 500);
 });
 
-// ---- API Key ----
-if (apiKey) {
-	apiKeyInput.value = '••••••••••••';
-	apiKeySave.textContent = 'Connected';
-	apiKeySave.classList.add('connected');
-}
-
-// Al hacer focus en el input, limpiar si muestra dots
-apiKeyInput.addEventListener('focus', () => {
-	if (apiKeyInput.value === '••••••••••••') {
-		apiKeyInput.value = '';
-		apiKeySave.textContent = 'Connect';
-		apiKeySave.classList.remove('connected');
-	}
-});
-
-// Si sale del input sin poner nada, restaurar el estado
-apiKeyInput.addEventListener('blur', () => {
-	if (!apiKeyInput.value.trim() && apiKey) {
-		apiKeyInput.value = '••••••••••••';
-		apiKeySave.textContent = 'Connected';
-		apiKeySave.classList.add('connected');
-	}
-});
-
-apiKeySave.addEventListener('click', async () => {
-	const val = apiKeyInput.value.trim();
-	if (!val || val === '••••••••••••') return;
-	apiKey = val;
-	localStorage.setItem(STORAGE_KEY, val);
-	apiKeyInput.value = '••••••••••••';
-	apiKeySave.textContent = 'Connected';
-	apiKeySave.classList.add('connected');
-	await loadGames();
-	await loadSpotlight();
-});
-
-// ---- Init (secuencial para respetar rate limit) ----
-(async () => {
-	await loadGames();
-	await loadSpotlight();
-})();
+// ---- Init ----
+loadGames();
+loadSpotlight();
 </script>
 
-<!-- Estilos del layout del scoreboard + estilos globales para HTML generado dinámicamente -->
+<!-- Layout del scoreboard -->
 <style>
 	.scoreboard {
 		padding: 1.5vw 4vw;
@@ -373,7 +277,7 @@ apiKeySave.addEventListener('click', async () => {
 	}
 </style>
 
-<!-- Estilos globales para el HTML inyectado por JS (game cards, player cards, etc.) -->
+<!-- Estilos globales para HTML dinámico -->
 <style is:global>
 	/* Game cards */
 	.game-card {

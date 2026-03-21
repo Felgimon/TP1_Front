@@ -75,18 +75,43 @@ if (ball && ballSvg && pageContent && logoEl) {
 	//  SFX — Web Audio API
 	// ======================
 	let audioCtx: AudioContext | null = null;
+	let audioUnlocked = false;
 
 	function initAudio() {
 		try {
 			audioCtx = new AudioContext();
+			// En refresh, el context queda "suspended" por política del browser.
+			// Intentamos resume inmediato (a veces funciona).
+			if (audioCtx.state === 'suspended') {
+				audioCtx.resume();
+			}
+			// Listener de fallback: si el usuario toca/clickea la página,
+			// desbloqueamos el audio para el impact sound al menos.
+			const unlockAudio = () => {
+				if (audioCtx && audioCtx.state === 'suspended') {
+					audioCtx.resume();
+				}
+				audioUnlocked = true;
+				document.removeEventListener('click', unlockAudio);
+				document.removeEventListener('touchstart', unlockAudio);
+				document.removeEventListener('keydown', unlockAudio);
+			};
+			document.addEventListener('click', unlockAudio, { once: true });
+			document.addEventListener('touchstart', unlockAudio, { once: true });
+			document.addEventListener('keydown', unlockAudio, { once: true });
 		} catch {
 			audioCtx = null;
 		}
 	}
 
 	// Swoosh: ruido blanco filtrado con barrido de frecuencia
-	function playSwoosh() {
+	async function playSwoosh() {
 		if (!audioCtx) return;
+		// Intentar desbloquear antes de reproducir
+		if (audioCtx.state === 'suspended') {
+			try { await audioCtx.resume(); } catch { /* silently fail */ }
+		}
+		if (audioCtx.state !== 'running') return;
 		const duration = 0.9;
 		const bufferSize = audioCtx.sampleRate * duration;
 		const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
@@ -119,8 +144,12 @@ if (ball && ballSvg && pageContent && logoEl) {
 	}
 
 	// Impacto sutil al llegar: "tok" de pelota
-	function playImpact() {
+	async function playImpact() {
 		if (!audioCtx) return;
+		if (audioCtx.state === 'suspended') {
+			try { await audioCtx.resume(); } catch { /* silently fail */ }
+		}
+		if (audioCtx.state !== 'running') return;
 		const t = audioCtx.currentTime;
 
 		const osc = audioCtx.createOscillator();
