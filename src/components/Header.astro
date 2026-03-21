@@ -3,7 +3,7 @@ import Logo from '../components/Logo.astro';
 ---
 
 <nav class="Header">
-    <Logo variant="icon" width="4vw" />
+    <Logo variant="icon" width="3.5vw" />
     <div class="Header-text">
         <h1>
             <span class="text-white">COURT </span>
@@ -15,19 +15,18 @@ import Logo from '../components/Logo.astro';
 </nav>
 
 <style>
-
     .invisible {
         opacity: 0;
-        aria-hidden: true;
-        width: 4vw;
+        aria-hidden: "true";
+        width: 3.5vw;
     }
 
     .Header {
         display: flex;
         flex-direction: row;
         justify-content: center;
-        height: 15%;
-        gap: 0.3vw;
+        height: 10%;
+        gap: 0.35vw;
         width: 100%;
     }
 
@@ -42,7 +41,8 @@ import Logo from '../components/Logo.astro';
 
     h3 {
         font-weight: 400;
-        letter-spacing: 0.01vw;
+        letter-spacing: 0.3vw;
+        font-size: 0.8vw;
         color: #f0f0f0a4;
     }
 

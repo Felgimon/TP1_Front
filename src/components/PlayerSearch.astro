@@ -1,0 +1,66 @@
+---
+// PlayerSearch.astro — Buscador de jugadores con resultados
+---
+
+<div class="tab-content" id="tab-players">
+	<div class="search-bar">
+		<svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+		</svg>
+		<input
+			type="text"
+			id="player-search"
+			placeholder="Search a player... (e.g. LeBron James)"
+			autocomplete="off"
+		/>
+	</div>
+	<div id="player-results"></div>
+</div>
+
+<style>
+	.tab-content {
+		display: none;
+	}
+
+	.tab-content.active {
+		display: block;
+	}
+
+	.search-bar {
+		position: relative;
+		margin-bottom: 1vw;
+	}
+
+	.search-icon {
+		position: absolute;
+		left: 1vw;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 1.1vw;
+		height: 1.1vw;
+		min-width: 16px;
+		min-height: 16px;
+		color: rgba(240,240,240,0.3);
+	}
+
+	.search-bar input {
+		width: 100%;
+		padding: 0.7vw 1vw 0.7vw 2.8vw;
+		background: rgba(255,255,255,0.04);
+		border: 0.5px solid rgba(255,255,255,0.08);
+		border-radius: 0.6vw;
+		color: #F0F0F0;
+		font-size: 0.85vw;
+		font-family: inherit;
+		outline: none;
+		transition: border-color 0.2s ease;
+	}
+
+	.search-bar input::placeholder {
+		color: rgba(240,240,240,0.25);
+	}
+
+	.search-bar input:focus {
+		border-color: rgba(232,69,14,0.4);
+	}
+</style>

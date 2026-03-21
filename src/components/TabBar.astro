@@ -1,0 +1,44 @@
+---
+// TabBar.astro — Toggle entre las dos secciones principales
+---
+
+<div class="tabs">
+	<button class="tab active" data-tab="games">Today's games</button>
+	<button class="tab" data-tab="players">Search players</button>
+</div>
+
+<style>
+	.tabs {
+		display: flex;
+		gap: 0;
+		background: rgba(255,255,255,0.04);
+		border-radius: 0.6vw;
+		overflow: hidden;
+		border: 0.5px solid rgba(255,255,255,0.06);
+		flex-shrink: 0;
+	}
+
+	.tab {
+		flex: 1;
+		padding: 0.7vw 1vw;
+		text-align: center;
+		font-size: 0.85vw;
+		font-weight: 500;
+		color: rgba(240,240,240,0.4);
+		background: none;
+		border: none;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		font-family: inherit;
+	}
+
+	.tab:hover {
+		color: rgba(240,240,240,0.6);
+	}
+
+	.tab.active {
+		color: #F0F0F0;
+		background: rgba(232,69,14,0.15);
+		border-bottom: 2px solid #E8450E;
+	}
+</style>

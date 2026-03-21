@@ -1,0 +1,28 @@
+---
+// GamesGrid.astro — Grilla de partidos del día
+---
+
+<div class="tab-content active" id="tab-games">
+	<div class="games-grid" id="games-grid">
+		<div class="loading" id="games-loading">
+			<div class="spinner"></div>
+			<span>Loading today's games...</span>
+		</div>
+	</div>
+</div>
+
+<style>
+	.tab-content {
+		display: none;
+	}
+
+	.tab-content.active {
+		display: block;
+	}
+
+	.games-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		gap: 0.8vw;
+	}
+</style>

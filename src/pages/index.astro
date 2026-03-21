@@ -2,13 +2,14 @@
 //http://localhost:4321
 import Header from '../components/Header.astro';
 import AnimationLogo from '../components/Animation_logo.astro';
+import ScoreBoard from '../components/ScoreBoard.astro';
 ---
 
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
+		<link rel="icon" type="image/svg+xml" href="src/assets/courtside-icon.svg" />
+		<link rel="icon" href="src/assets/courtside-icon.svg" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
 		<title>Court Side</title>
@@ -17,8 +18,8 @@ import AnimationLogo from '../components/Animation_logo.astro';
 		<AnimationLogo />
 
 		<div id="page-content">
-			<Header/>
-			<!-- Agregá más contenido acá -->
+			<Header />
+			<ScoreBoard />
 		</div>
 	</body>
 </html>
@@ -37,5 +38,10 @@ import AnimationLogo from '../components/Animation_logo.astro';
 		background-color: #1A1A2E;
 		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 		overflow: hidden;
+	}
+
+	#page-content {
+		width: 100%;
+		height: 100%;
 	}
 </style>

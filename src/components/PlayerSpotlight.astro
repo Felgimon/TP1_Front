@@ -1,0 +1,35 @@
+---
+// PlayerSpotlight.astro — Jugador destacado del día
+---
+
+<div class="spotlight" id="spotlight">
+	<div class="section-label">PLAYER SPOTLIGHT</div>
+	<div id="spotlight-card" class="loading-placeholder">
+		<div class="spinner"></div>
+		<span>Loading player...</span>
+	</div>
+</div>
+
+<style>
+	.spotlight {
+		flex-shrink: 0;
+	}
+
+	.section-label {
+		font-size: 0.65vw;
+		color: rgba(240,240,240,0.35);
+		letter-spacing: 1.5px;
+		margin-bottom: 0.8vw;
+		font-weight: 500;
+	}
+
+	.loading-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.6vw;
+		padding: 2vw;
+		color: rgba(240,240,240,0.3);
+		font-size: 0.8vw;
+	}
+</style>
