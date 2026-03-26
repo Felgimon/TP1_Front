@@ -32,6 +32,22 @@ const spotlightCard = document.getElementById('spotlight-card') as HTMLElement;
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
+// ---- Fetch con reintentos (client-side) ----
+async function fetchRetry(url: string, maxRetries = 3, baseDelay = 2000): Promise<Response> {
+	for (let attempt = 0; attempt < maxRetries; attempt++) {
+		try {
+			const res = await fetch(url);
+			if (res.ok) return res;
+			// Si el server devolvió error, reintentamos
+			if (attempt === maxRetries - 1) return res;
+		} catch {
+			if (attempt === maxRetries - 1) throw new Error('fetch failed');
+		}
+		await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
+	}
+	throw new Error('fetch failed');
+}
+
 // ---- TABS ----
 tabs.forEach(tab => {
 	tab.addEventListener('click', () => {
@@ -176,7 +192,6 @@ async function loadGames() {
 // ---- FETCH: Player spotlight ----
 async function loadSpotlight() {
 	try {
-		// IDs de estrellas conocidas de NBA.com
 		const starIds = [
 			{ id: '2544', name: 'LeBron James' },
 			{ id: '201939', name: 'Stephen Curry' },
@@ -189,18 +204,22 @@ async function loadSpotlight() {
 		];
 		const pick = starIds[Math.floor(Math.random() * starIds.length)];
 
-		const res = await fetch(`/api/player-stats/${pick.id}`);
+		spotlightCard.innerHTML = `<div class="loading"><div class="spinner"></div><span>Loading ${pick.name}...</span></div>`;
+
+		const res = await fetchRetry(`/api/player-stats/${pick.id}`);
 		const data = await res.json();
 
 		if (data.player) {
 			spotlightCard.innerHTML = renderPlayerCard(data.player);
 		} else {
-			spotlightCard.innerHTML = '<div class="empty-state small">Could not load spotlight</div>';
+			spotlightCard.innerHTML = '<div class="empty-state small">Stats not available right now</div>';
 		}
 	} catch {
-		spotlightCard.innerHTML = '<div class="empty-state small">Could not load spotlight</div>';
+		spotlightCard.innerHTML = '<div class="empty-state small">Could not load spotlight — NBA.com may be slow. <button class="retry-btn" onclick="this.closest(\'.spotlight\').querySelector(\'.loading-placeholder, .empty-state\')?.remove(); window.__retrySpotlight();">Retry</button></div>';
 	}
 }
+// Expose retry globally for the button
+(window as any).__retrySpotlight = loadSpotlight;
 
 // ---- FETCH: Search players ----
 async function searchPlayers(query: string) {
@@ -209,7 +228,7 @@ async function searchPlayers(query: string) {
 		return;
 	}
 
-	playerResults.innerHTML = '<div class="loading"><div class="spinner"></div><span>Searching...</span></div>';
+	playerResults.innerHTML = '<div class="loading"><div class="spinner"></div><span>Searching players...</span></div>';
 
 	try {
 		const res = await fetch(`/api/players?search=${encodeURIComponent(query)}`);
@@ -221,21 +240,28 @@ async function searchPlayers(query: string) {
 			return;
 		}
 
-		// Traer stats de cada jugador SECUENCIALMENTE (NBA.com bloquea muchos requests simultáneos)
-		const cards: string[] = [];
-		for (const p of players.slice(0, 5)) {
+		// Mostrar nombres inmediatamente, después cargar stats una por una
+		const cards: string[] = players.slice(0, 5).map((p: any) =>
+			renderPlayerCard({ ...p, seasonStats: null })
+		);
+		playerResults.innerHTML = cards.join('');
+
+		// Cargar stats secuencialmente y reemplazar cada card
+		for (let i = 0; i < Math.min(players.length, 5); i++) {
+			const p = players[i];
 			try {
-				const statsRes = await fetch(`/api/player-stats/${p.id}`);
+				const statsRes = await fetchRetry(`/api/player-stats/${p.id}`, 2, 1500);
 				const statsData = await statsRes.json();
-				cards.push(renderPlayerCard(statsData.player || { ...p, seasonStats: null }));
+				if (statsData.player) {
+					cards[i] = renderPlayerCard(statsData.player);
+					playerResults.innerHTML = cards.join('');
+				}
 			} catch {
-				cards.push(renderPlayerCard({ ...p, seasonStats: null }));
+				// Card ya está mostrando sin stats, la dejamos así
 			}
-			// Mostrar resultados progresivamente
-			playerResults.innerHTML = cards.join('');
 		}
 	} catch {
-		playerResults.innerHTML = '<div class="empty-state error">Search failed</div>';
+		playerResults.innerHTML = '<div class="empty-state error">Search failed — try again in a moment</div>';
 	}
 }
 
@@ -501,5 +527,24 @@ loadSpotlight();
 
 	.empty-state.error {
 		color: #E24B4A;
+	}
+
+	.retry-btn {
+		display: inline-block;
+		margin-top: 0.5vw;
+		padding: 0.3vw 1vw;
+		background: rgba(232,69,14,0.15);
+		border: 0.5px solid rgba(232,69,14,0.3);
+		border-radius: 0.4vw;
+		color: #E8450E;
+		font-size: 0.7vw;
+		font-weight: 500;
+		cursor: pointer;
+		font-family: inherit;
+		transition: background 0.2s ease;
+	}
+
+	.retry-btn:hover {
+		background: rgba(232,69,14,0.25);
 	}
 </style>
