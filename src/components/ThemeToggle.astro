@@ -1,0 +1,89 @@
+---
+// ThemeToggle.astro — Botón para alternar entre dark y light mode
+---
+
+<button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+	<!-- Luna (visible en dark mode) -->
+	<svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+	</svg>
+	<!-- Sol (visible en light mode) -->
+	<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+		<circle cx="12" cy="12" r="5"/>
+		<line x1="12" y1="1" x2="12" y2="3"/>
+		<line x1="12" y1="21" x2="12" y2="23"/>
+		<line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+		<line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+		<line x1="1" y1="12" x2="3" y2="12"/>
+		<line x1="21" y1="12" x2="23" y2="12"/>
+		<line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+		<line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+	</svg>
+</button>
+
+<script>
+const toggle = document.getElementById('theme-toggle') as HTMLButtonElement;
+const STORAGE_KEY = 'courtside_theme';
+
+// Cargar tema guardado o usar dark por defecto
+function getTheme(): string {
+	return localStorage.getItem(STORAGE_KEY) || 'dark';
+}
+
+function applyTheme(theme: string) {
+	document.documentElement.setAttribute('data-theme', theme);
+	localStorage.setItem(STORAGE_KEY, theme);
+}
+
+// Inicializar
+applyTheme(getTheme());
+
+toggle.addEventListener('click', () => {
+	const current = getTheme();
+	const next = current === 'dark' ? 'light' : 'dark';
+	applyTheme(next);
+});
+</script>
+
+<style>
+	.theme-toggle {
+		position: absolute;
+		right: 2vw;
+		top: 50%;
+		transform: translateY(-50%);
+		background: none;
+		border: 1px solid var(--cs-border);
+		border-radius: 50%;
+		width: 2.5vw;
+		height: 2.5vw;
+		min-width: 32px;
+		min-height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: background 0.2s ease, border-color 0.2s ease;
+		color: var(--cs-text-secondary);
+	}
+
+	.theme-toggle:hover {
+		background: var(--cs-card-bg);
+		border-color: var(--cs-border-hover);
+		color: var(--cs-text-primary);
+	}
+
+	.theme-toggle svg {
+		width: 1.1vw;
+		height: 1.1vw;
+		min-width: 14px;
+		min-height: 14px;
+	}
+
+	/* Dark mode: muestra luna, oculta sol */
+	:global([data-theme="dark"]) .icon-sun { display: none; }
+	:global([data-theme="dark"]) .icon-moon { display: block; }
+
+	/* Light mode: muestra sol, oculta luna */
+	:global([data-theme="light"]) .icon-sun { display: block; }
+	:global([data-theme="light"]) .icon-moon { display: none; }
+</style>

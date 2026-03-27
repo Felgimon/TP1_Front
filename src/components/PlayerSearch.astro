@@ -40,27 +40,27 @@
 		height: 1.1vw;
 		min-width: 16px;
 		min-height: 16px;
-		color: rgba(240,240,240,0.3);
+		color: var(--cs-text-hint);
 	}
 
 	.search-bar input {
 		width: 100%;
 		padding: 0.7vw 1vw 0.7vw 2.8vw;
-		background: rgba(255,255,255,0.04);
-		border: 0.5px solid rgba(255,255,255,0.08);
+		background: var(--cs-input-bg);
+		border: 0.5px solid var(--cs-input-border);
 		border-radius: 0.6vw;
-		color: #F0F0F0;
+		color: var(--cs-text-primary);
 		font-size: 0.85vw;
 		font-family: inherit;
 		outline: none;
-		transition: border-color 0.2s ease;
+		transition: border-color 0.2s ease, background 0.3s ease;
 	}
 
 	.search-bar input::placeholder {
-		color: rgba(240,240,240,0.25);
+		color: var(--cs-text-hint);
 	}
 
 	.search-bar input:focus {
-		border-color: rgba(232,69,14,0.4);
+		border-color: var(--cs-input-focus);
 	}
 </style>

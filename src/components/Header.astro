@@ -1,37 +1,35 @@
 ---
 import Logo from '../components/Logo.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
 ---
 
 <nav class="Header">
     <Logo variant="icon" width="3.5vw" />
     <div class="Header-text">
         <h1>
-            <span class="text-white">COURT </span>
+            <span class="text-title">COURT </span>
             <span class="text-gradient">SIDE</span>
         </h1>
         <h3><span class="nba-underline">NBA</span> TRACKER</h3>
     </div>
-    <div class='invisible'></div>
+    <ThemeToggle />
 </nav>
 
 <style>
-    .invisible {
-        opacity: 0;
-        aria-hidden: "true";
-        width: 3.5vw;
-    }
-
     .Header {
         display: flex;
         flex-direction: row;
         justify-content: center;
+        align-items: center;
         height: 10%;
         gap: 0.35vw;
         width: 100%;
+        position: relative;
     }
 
-    .text-white {
-        color: #F0F0F0;
+    .text-title {
+        color: var(--cs-text-primary);
+        transition: color 0.3s ease;
     }
 
     h1 {
@@ -43,7 +41,8 @@ import Logo from '../components/Logo.astro';
         font-weight: 400;
         letter-spacing: 0.3vw;
         font-size: 0.8vw;
-        color: #f0f0f0a4;
+        color: var(--cs-text-secondary);
+        transition: color 0.3s ease;
     }
 
     .text-gradient {
@@ -54,7 +53,7 @@ import Logo from '../components/Logo.astro';
     }
 
     .nba-underline {
-        border-bottom: 0.15vw solid #e85d04;
+        border-bottom: 0.15vw solid var(--cs-accent);
         padding-bottom: 0.15vw;
     }
     
