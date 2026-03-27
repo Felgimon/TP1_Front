@@ -1,0 +1,113 @@
+---
+//http://localhost:4321
+import Header from '../components/Header.astro';
+import AnimationLogo from '../components/Animation_logo.astro';
+import ScoreBoard from '../components/ScoreBoard.astro';
+---
+
+<html lang="en" data-theme="dark">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="src/assets/courtside-icon.svg" />
+		<link rel="icon" href="src/assets/courtside-icon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Court Side</title>
+	</head>
+	<body>
+		<AnimationLogo />
+
+		<div id="page-content">
+			<Header />
+			<ScoreBoard />
+		</div>
+	</body>
+</html>
+
+<!-- Script inline para evitar flash de tema incorrecto -->
+<script is:inline>
+(function() {
+	const theme = localStorage.getItem('courtside_theme') || 'dark';
+	document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
+
+<style is:global>
+	/* ============================================
+	   THEME VARIABLES — Dark (default) + Light
+	   ============================================ */
+	:root,
+	[data-theme="dark"] {
+		--cs-bg: #1A1A2E;
+		--cs-card-bg: rgba(255,255,255,0.04);
+		--cs-card-bg-solid: #22223A;
+		--cs-stat-bg: rgba(255,255,255,0.03);
+		--cs-badge-bg: rgba(255,255,255,0.08);
+		--cs-border: rgba(255,255,255,0.06);
+		--cs-border-hover: rgba(255,255,255,0.12);
+		--cs-text-primary: #F0F0F0;
+		--cs-text-secondary: rgba(240,240,240,0.5);
+		--cs-text-muted: rgba(240,240,240,0.35);
+		--cs-text-hint: rgba(240,240,240,0.25);
+		--cs-text-faint: rgba(240,240,240,0.2);
+		--cs-accent: #E8450E;
+		--cs-accent-light: #FF7A3D;
+		--cs-accent-bg: rgba(232,69,14,0.15);
+		--cs-accent-border: rgba(232,69,14,0.3);
+		--cs-error: #E24B4A;
+		--cs-input-bg: rgba(255,255,255,0.04);
+		--cs-input-border: rgba(255,255,255,0.08);
+		--cs-input-focus: rgba(232,69,14,0.4);
+		--cs-scrollbar: rgba(255,255,255,0.1);
+		--cs-avatar-text: #1A1A2E;
+	}
+
+	[data-theme="light"] {
+		--cs-bg: #F0F1F5;
+		--cs-card-bg: #FFFFFF;
+		--cs-card-bg-solid: #FFFFFF;
+		--cs-stat-bg: rgba(0,0,0,0.03);
+		--cs-badge-bg: rgba(0,0,0,0.06);
+		--cs-border: rgba(0,0,0,0.1);
+		--cs-border-hover: rgba(0,0,0,0.18);
+		--cs-text-primary: #1A1A2E;
+		--cs-text-secondary: rgba(26,26,46,0.6);
+		--cs-text-muted: rgba(26,26,46,0.45);
+		--cs-text-hint: rgba(26,26,46,0.3);
+		--cs-text-faint: rgba(26,26,46,0.18);
+		--cs-accent: #D13D0B;
+		--cs-accent-light: #E8450E;
+		--cs-accent-bg: rgba(209,61,11,0.1);
+		--cs-accent-border: rgba(209,61,11,0.25);
+		--cs-error: #C23030;
+		--cs-input-bg: rgba(0,0,0,0.03);
+		--cs-input-border: rgba(0,0,0,0.12);
+		--cs-input-focus: rgba(209,61,11,0.35);
+		--cs-scrollbar: rgba(0,0,0,0.12);
+		--cs-avatar-text: #FFFFFF;
+	}
+
+	/* ============================================
+	   GLOBAL RESET + BODY
+	   ============================================ */
+	* {
+		margin: 0;
+		margin-block: 0;
+		padding: 0;
+		box-sizing: border-box;
+	}
+
+	body {
+		width: 100vw;
+		height: 100vh;
+		background-color: var(--cs-bg);
+		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		overflow: hidden;
+		transition: background-color 0.3s ease;
+	}
+
+	#page-content {
+		width: 100%;
+		height: 100%;
+	}
+</style>
