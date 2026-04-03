@@ -1,22 +1,12 @@
 // src/pages/api/player-stats/[id].ts
-// GET /api/player-stats/2544 → stats de un jugador por su ID
-// Requests secuenciales + reintentos para evitar bloqueos de stats.nba.com
+// GET /api/player-stats/237 → stats de un jugador por su ID via balldontlie.io
 
 import type { APIRoute } from 'astro';
-import { fetchNbaStats, rowSetToObjects, getCurrentSeason } from '../../../lib/nba-proxy';
 
-// Retry helper: intenta hasta N veces con delay creciente
-async function fetchWithRetry(fn: () => Promise<any>, maxRetries = 3, baseDelay = 1500): Promise<any> {
-	for (let attempt = 0; attempt < maxRetries; attempt++) {
-		try {
-			return await fn();
-		} catch (err) {
-			if (attempt === maxRetries - 1) throw err;
-			const delay = baseDelay * (attempt + 1);
-			console.log(`[RETRY] Attempt ${attempt + 1} failed, waiting ${delay}ms...`);
-			await new Promise(r => setTimeout(r, delay));
-		}
-	}
+function getCurrentSeasonYear(): number {
+	const now = new Date();
+	// La temporada NBA empieza en octubre (mes 9)
+	return now.getMonth() >= 9 ? now.getFullYear() : now.getFullYear() - 1;
 }
 
 export const GET: APIRoute = async ({ params }) => {
@@ -29,57 +19,61 @@ export const GET: APIRoute = async ({ params }) => {
 	}
 
 	try {
-		// SECUENCIAL (no Promise.all) — stats.nba.com bloquea requests simultáneos
-		const infoData = await fetchWithRetry(() =>
-			fetchNbaStats('commonplayerinfo', { PlayerID: playerId })
-		);
+		const apiKey = import.meta.env.BALLDONTLIE_API_KEY;
+		const season = getCurrentSeasonYear();
 
-		// Pausa entre requests para no saturar
-		await new Promise(r => setTimeout(r, 500));
+		const [playerRes, statsRes] = await Promise.all([
+			fetch(`https://api.balldontlie.io/v1/players/${playerId}`, {
+				headers: { 'Authorization': apiKey }
+			}),
+			fetch(`https://api.balldontlie.io/v1/season_averages?season=${season}&player_ids[]=${playerId}`, {
+				headers: { 'Authorization': apiKey }
+			})
+		]);
 
-		const careerData = await fetchWithRetry(() =>
-			fetchNbaStats('playercareerstats', { PlayerID: playerId, PerMode: 'PerGame' })
-		);
+		if (!playerRes.ok) throw new Error(`BallDontLie player ${playerRes.status}`);
 
-		// Info del jugador
-		const playerInfo = infoData?.resultSets?.[0];
-		const info = playerInfo ? rowSetToObjects(playerInfo)[0] : null;
+		const p = await playerRes.json();
+		const statsData = statsRes.ok ? await statsRes.json() : { data: [] };
 
-		// Season averages (última temporada)
-		const seasonStats = careerData?.resultSets?.[0];
-		const allSeasons = seasonStats ? rowSetToObjects(seasonStats) : [];
-		const currentSeason = getCurrentSeason();
-
-		let stats = allSeasons.find((s: any) => s.SEASON_ID === currentSeason);
-		if (!stats && allSeasons.length > 0) {
-			stats = allSeasons[allSeasons.length - 1];
+		// Si no hay stats para la temporada actual, intenta la anterior
+		let stats = statsData.data?.[0];
+		if (!stats) {
+			const prevRes = await fetch(
+				`https://api.balldontlie.io/v1/season_averages?season=${season - 1}&player_ids[]=${playerId}`,
+				{ headers: { 'Authorization': apiKey } }
+			);
+			if (prevRes.ok) {
+				const prevData = await prevRes.json();
+				stats = prevData.data?.[0];
+			}
 		}
 
 		const player = {
 			id: playerId,
-			firstName: info?.FIRST_NAME || '',
-			lastName: info?.LAST_NAME || '',
-			name: info?.DISPLAY_FIRST_LAST || `Player ${playerId}`,
-			team: info?.TEAM_NAME || '',
-			teamAbbr: info?.TEAM_ABBREVIATION || '',
-			teamCity: info?.TEAM_CITY || '',
-			jerseyNumber: info?.JERSEY || '',
-			position: info?.POSITION || '',
-			height: info?.HEIGHT || '',
-			weight: info?.WEIGHT || '',
-			country: info?.COUNTRY || '',
+			firstName: p.first_name,
+			lastName: p.last_name,
+			name: `${p.first_name} ${p.last_name}`,
+			team: p.team?.full_name || '',
+			teamAbbr: p.team?.abbreviation || '',
+			teamCity: p.team?.city || '',
+			jerseyNumber: p.jersey_number || '',
+			position: p.position || '',
+			height: p.height || '',
+			weight: p.weight_pounds ? `${p.weight_pounds}` : '',
+			country: p.country || '',
 			seasonStats: stats ? {
-				season: stats.SEASON_ID,
-				gp: stats.GP,
-				pts: stats.PTS,
-				reb: stats.REB,
-				ast: stats.AST,
-				stl: stats.STL,
-				blk: stats.BLK,
-				fgPct: stats.FG_PCT,
-				fg3Pct: stats.FG3_PCT,
-				ftPct: stats.FT_PCT,
-				min: stats.MIN,
+				season: `${stats.season}-${String(stats.season + 1).slice(2)}`,
+				gp: stats.games_played,
+				pts: stats.pts,
+				reb: stats.reb,
+				ast: stats.ast,
+				stl: stats.stl,
+				blk: stats.blk,
+				fgPct: stats.fg_pct,
+				fg3Pct: stats.fg3_pct,
+				ftPct: stats.ft_pct,
+				min: parseFloat(stats.min) || 0,
 			} : null,
 		};
 

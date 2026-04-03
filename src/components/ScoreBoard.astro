@@ -192,21 +192,21 @@ async function loadGames() {
 // ---- FETCH: Player spotlight ----
 async function loadSpotlight() {
 	try {
-		const starIds = [
-			{ id: '2544', name: 'LeBron James' },
-			{ id: '201939', name: 'Stephen Curry' },
-			{ id: '203999', name: 'Nikola Jokic' },
-			{ id: '1629029', name: 'Luka Doncic' },
-			{ id: '203507', name: 'Giannis Antetokounmpo' },
-			{ id: '1628369', name: 'Jayson Tatum' },
-			{ id: '1630162', name: 'Anthony Edwards' },
-			{ id: '1641705', name: 'Victor Wembanyama' },
+		const starNames = [
+			'LeBron James', 'Stephen Curry', 'Nikola Jokic',
+			'Luka Doncic', 'Giannis Antetokounmpo', 'Jayson Tatum',
+			'Anthony Edwards', 'Victor Wembanyama',
 		];
-		const pick = starIds[Math.floor(Math.random() * starIds.length)];
+		const name = starNames[Math.floor(Math.random() * starNames.length)];
 
-		spotlightCard.innerHTML = `<div class="loading"><div class="spinner"></div><span>Loading ${pick.name}...</span></div>`;
+		spotlightCard.innerHTML = `<div class="loading"><div class="spinner"></div><span>Loading ${name}...</span></div>`;
 
-		const res = await fetchRetry(`/api/player-stats/${pick.id}`);
+		const searchRes = await fetch(`/api/players?search=${encodeURIComponent(name)}`);
+		const searchData = await searchRes.json();
+		const found = searchData.players?.[0];
+		if (!found) throw new Error('Player not found');
+
+		const res = await fetchRetry(`/api/player-stats/${found.id}`);
 		const data = await res.json();
 
 		if (data.player) {
@@ -215,7 +215,7 @@ async function loadSpotlight() {
 			spotlightCard.innerHTML = '<div class="empty-state small">Stats not available right now</div>';
 		}
 	} catch {
-		spotlightCard.innerHTML = '<div class="empty-state small">Could not load spotlight — NBA.com may be slow. <button class="retry-btn" onclick="this.closest(\'.spotlight\').querySelector(\'.loading-placeholder, .empty-state\')?.remove(); window.__retrySpotlight();">Retry</button></div>';
+		spotlightCard.innerHTML = '<div class="empty-state small">Could not load spotlight. <button class="retry-btn" onclick="window.__retrySpotlight();">Retry</button></div>';
 	}
 }
 // Expose retry globally for the button
