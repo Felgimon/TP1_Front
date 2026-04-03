@@ -1486,7 +1486,7 @@ const ASTRO_PATH_PARAM = "x_astro_path";
 const ASTRO_LOCALS_HEADER = "x-astro-locals";
 const ASTRO_MIDDLEWARE_SECRET_HEADER = "x-astro-middleware-secret";
 
-const middlewareSecret = "12083e9f-ed46-45ea-b3fb-64607886024c";
+const middlewareSecret = "0161990b-7093-4eb4-ac86-9f79d07eadd2";
 
 function shouldAppendForwardSlash(trailingSlash, buildFormat) {
   switch (trailingSlash) {
@@ -1506,7 +1506,7 @@ function shouldAppendForwardSlash(trailingSlash, buildFormat) {
   }
 }
 
-const ASTRO_VERSION = "6.0.4";
+const ASTRO_VERSION = "6.1.3";
 const ASTRO_GENERATOR = `Astro v${ASTRO_VERSION}`;
 const REROUTE_DIRECTIVE_HEADER = "X-Astro-Reroute";
 const REWRITE_DIRECTIVE_HEADER_KEY = "X-Astro-Rewrite";
@@ -1760,15 +1760,22 @@ function createI18nMiddleware(i18n, base, trailingSlash, format) {
         return context.redirect(location, routeDecision.status);
       }
       case "notFound": {
-        const notFoundRes = new Response(response.body, {
-          status: 404,
-          headers: response.headers
-        });
-        notFoundRes.headers.set(REROUTE_DIRECTIVE_HEADER, "no");
-        if (routeDecision.location) {
-          notFoundRes.headers.set("Location", routeDecision.location);
+        if (context.isPrerendered) {
+          const prerenderedRes = new Response(response.body, {
+            status: 404,
+            headers: response.headers
+          });
+          prerenderedRes.headers.set(REROUTE_DIRECTIVE_HEADER, "no");
+          if (routeDecision.location) {
+            prerenderedRes.headers.set("Location", routeDecision.location);
+          }
+          return prerenderedRes;
         }
-        return notFoundRes;
+        const headers = new Headers();
+        if (routeDecision.location) {
+          headers.set("Location", routeDecision.location);
+        }
+        return new Response(null, { status: 404, headers });
       }
     }
     if (i18n.fallback && i18n.fallbackType) {
@@ -2325,7 +2332,7 @@ function deserializeActionResult(res) {
         })
       };
     }
-    if (Object.assign(__vite_import_meta_env__$1, { OS: "Windows_NT", Path: "C:\\Users\\48803094\\Documents\\GitHub\\TP1_Front\\node_modules\\.bin;C:\\Users\\48803094\\Documents\\GitHub\\node_modules\\.bin;C:\\Users\\48803094\\Documents\\node_modules\\.bin;C:\\Users\\48803094\\node_modules\\.bin;C:\\Users\\node_modules\\.bin;C:\\node_modules\\.bin;C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\node-gyp-bin;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\Python313\\Scripts\\;C:\\Python313\\;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\;C:\\Windows\\System32\\OpenSSH\\;C:\\Program Files\\nodejs\\;C:\\ProgramData\\chocolatey\\bin;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Microsoft VS Code\\bin;C:\\Program Files\\Docker\\Docker\\resources\\bin;C:\\Users\\48803094\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Users\\48803094\\AppData\\Local\\GitHubDesktop\\bin" })?.PROD) {
+    if (Object.assign(__vite_import_meta_env__$1, { OS: "Windows_NT", Path: "C:\\Users\\User\\Documents\\GitHub\\TP1_Front\\node_modules\\.bin;C:\\Users\\User\\Documents\\GitHub\\node_modules\\.bin;C:\\Users\\User\\Documents\\node_modules\\.bin;C:\\Users\\User\\node_modules\\.bin;C:\\Users\\node_modules\\.bin;C:\\node_modules\\.bin;C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\node-gyp-bin;c:\\Users\\User\\AppData\\Roaming\\Code\\User\\globalStorage\\github.copilot-chat\\debugCommand;c:\\Users\\User\\AppData\\Roaming\\Code\\User\\globalStorage\\github.copilot-chat\\copilotCli;C:\\Users\\User\\AppData\\Local\\Programs\\Microsoft VS Code;C:\\Program Files\\Common Files\\Oracle\\Java\\javapath;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\dotnet\\;C:\\Program Files (x86)\\NVIDIA Corporation\\PhysX\\Common;C:\\Program Files\\Git\\cmd;C:\\Program Files\\NVIDIA Corporation\\NVIDIA app\\NvDLISR;C:\\Program Files\\Go\\bin;C:\\Program Files\\nodejs\\;C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\;C:\\Users\\User\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-21.0.10.7-hotspot\\bin;C:\\Users\\User\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Users\\User\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;C:\\Users\\User\\AppData\\Local\\GitHubDesktop\\bin;C:\\Program Files\\nodejs;C:\\Users\\User\\go\\bin;C:\\Users\\User\\AppData\\Roaming\\npm;C:\\Users\\User\\.dotnet\\tools" })?.PROD) {
       return { error: ActionError.fromJson(json), data: void 0 };
     } else {
       const error = ActionError.fromJson(json);
@@ -2743,6 +2750,27 @@ function computeCurrentLocale(pathname, locales, defaultLocale) {
     }
   }
 }
+function computeCurrentLocaleFromParams(params, locales) {
+  const byNormalizedCode = /* @__PURE__ */ new Map();
+  const byPath = /* @__PURE__ */ new Map();
+  for (const locale of locales) {
+    if (typeof locale === "string") {
+      byNormalizedCode.set(normalizeTheLocale(locale), locale);
+    } else {
+      byPath.set(locale.path, locale.codes[0]);
+      for (const code of locale.codes) {
+        byNormalizedCode.set(normalizeTheLocale(code), code);
+      }
+    }
+  }
+  for (const value of Object.values(params)) {
+    if (!value) continue;
+    const pathMatch = byPath.get(value);
+    if (pathMatch) return pathMatch;
+    const codeMatch = byNormalizedCode.get(normalizeTheLocale(value));
+    if (codeMatch) return codeMatch;
+  }
+}
 
 async function renderEndpoint(mod, context, isPrerendered, logger) {
   const { request, url } = context;
@@ -2822,13 +2850,12 @@ Object.defineProperty(HTMLBytes.prototype, Symbol.toStringTag, {
     return "HTMLBytes";
   }
 });
+const htmlStringSymbol = /* @__PURE__ */ Symbol.for("astro:html-string");
 class HTMLString extends String {
-  get [Symbol.toStringTag]() {
-    return "HTMLString";
-  }
+  [htmlStringSymbol] = true;
 }
 const markHTMLString = (value) => {
-  if (value instanceof HTMLString) {
+  if (isHTMLString(value)) {
     return value;
   }
   if (typeof value === "string") {
@@ -2837,7 +2864,7 @@ const markHTMLString = (value) => {
   return value;
 };
 function isHTMLString(value) {
-  return value instanceof HTMLString;
+  return !!value?.[htmlStringSymbol];
 }
 function markHTMLBytes(bytes) {
   return new HTMLBytes(bytes);
@@ -2888,19 +2915,35 @@ function isVNode(vnode) {
   return vnode && typeof vnode === "object" && vnode[AstroJSX];
 }
 
+function resolvePropagationHint(input) {
+  const explicitHint = input.factoryHint ?? "none";
+  if (explicitHint !== "none") {
+    return explicitHint;
+  }
+  if (!input.moduleId) {
+    return "none";
+  }
+  return input.metadataLookup(input.moduleId) ?? "none";
+}
+function isPropagatingHint(hint) {
+  return hint === "self" || hint === "in-tree";
+}
+function getPropagationHint$1(result, factory) {
+  return resolvePropagationHint({
+    factoryHint: factory.propagation,
+    moduleId: factory.moduleId,
+    metadataLookup: (moduleId) => result.componentMetadata.get(moduleId)?.propagation
+  });
+}
+
 function isAstroComponentFactory(obj) {
   return obj == null ? false : obj.isAstroComponentFactory === true;
 }
 function isAPropagatingComponent(result, factory) {
-  const hint = getPropagationHint(result, factory);
-  return hint === "in-tree" || hint === "self";
+  return isPropagatingHint(getPropagationHint(result, factory));
 }
 function getPropagationHint(result, factory) {
-  let hint = factory.propagation || "none";
-  if (factory.moduleId && result.componentMetadata.has(factory.moduleId) && hint === "none") {
-    hint = result.componentMetadata.get(factory.moduleId).propagation;
-  }
-  return hint;
+  return getPropagationHint$1(result, factory);
 }
 
 const PROP_TYPE = {
@@ -3225,6 +3268,67 @@ function getPrescripts(result, type, directive) {
     case "directive":
       return `<script>${getDirectiveScriptText(result, directive)}</script>`;
   }
+}
+
+async function collectPropagatedHeadParts(input) {
+  const collectedHeadParts = [];
+  const iterator = input.propagators.values();
+  while (true) {
+    const { value, done } = iterator.next();
+    if (done) {
+      break;
+    }
+    const returnValue = await value.init(input.result);
+    if (input.isHeadAndContent(returnValue) && returnValue.head) {
+      collectedHeadParts.push(returnValue.head);
+    }
+  }
+  return collectedHeadParts;
+}
+
+function shouldRenderHeadInstruction(state) {
+  return !state.hasRenderedHead && !state.partial;
+}
+function shouldRenderMaybeHeadInstruction(state) {
+  return !state.hasRenderedHead && !state.headInTree && !state.partial;
+}
+function shouldRenderInstruction$1(type, state) {
+  return type === "head" ? shouldRenderHeadInstruction(state) : shouldRenderMaybeHeadInstruction(state);
+}
+
+function registerIfPropagating(result, factory, instance) {
+  if (factory.propagation === "self" || factory.propagation === "in-tree") {
+    result._metadata.propagators.add(
+      instance
+    );
+    return;
+  }
+  if (factory.moduleId) {
+    const hint = result.componentMetadata.get(factory.moduleId)?.propagation;
+    if (isPropagatingHint(hint ?? "none")) {
+      result._metadata.propagators.add(
+        instance
+      );
+    }
+  }
+}
+async function bufferPropagatedHead(result) {
+  const collected = await collectPropagatedHeadParts({
+    propagators: result._metadata.propagators,
+    result,
+    isHeadAndContent
+  });
+  result._metadata.extraHead.push(...collected);
+}
+function shouldRenderInstruction(type, state) {
+  return shouldRenderInstruction$1(type, state);
+}
+function getInstructionRenderState(result) {
+  return {
+    hasRenderedHead: result._metadata.hasRenderedHead,
+    headInTree: result._metadata.headInTree,
+    partial: result.partial
+  };
 }
 
 function renderCspContent(result) {
@@ -3959,13 +4063,13 @@ function stringifyChunk(result, chunk) {
         }
       }
       case "head": {
-        if (result._metadata.hasRenderedHead || result.partial) {
+        if (!shouldRenderInstruction("head", getInstructionRenderState(result))) {
           return "";
         }
         return renderAllHeadContent(result);
       }
       case "maybe-head": {
-        if (result._metadata.hasRenderedHead || result._metadata.headInTree || result.partial) {
+        if (!shouldRenderInstruction("maybe-head", getInstructionRenderState(result))) {
           return "";
         }
         return renderAllHeadContent(result);
@@ -4204,9 +4308,7 @@ function validateComponentProps(props, clientDirectives, displayName) {
 function createAstroComponentInstance(result, displayName, factory, props, slots = {}) {
   validateComponentProps(props, result.clientDirectives, displayName);
   const instance = new AstroComponentInstance(result, props, slots, factory);
-  if (isAPropagatingComponent(result, factory)) {
-    result._metadata.propagators.add(instance);
-  }
+  registerIfPropagating(result, factory, instance);
   return instance;
 }
 function isAstroComponentInstance(obj) {
@@ -4326,17 +4428,7 @@ async function callComponentAsTemplateResultOrResponse(result, componentFactory,
   return factoryResult;
 }
 async function bufferHeadContent(result) {
-  const iterator = result._metadata.propagators.values();
-  while (true) {
-    const { value, done } = iterator.next();
-    if (done) {
-      break;
-    }
-    const returnValue = await value.init(result);
-    if (isHeadAndContent(returnValue) && returnValue.head) {
-      result._metadata.extraHead.push(returnValue.head);
-    }
-  }
+  await bufferPropagatedHead(result);
 }
 async function renderToAsyncIterable(result, componentFactory, props, children, isPage = false, route) {
   const templateResult = await callComponentAsTemplateResultOrResponse(
@@ -5451,7 +5543,10 @@ async function renderPage(result, componentFactory, props, children, streaming, 
     const pageProps = { ...props ?? {}, "server:root": true };
     let str;
     if (result._experimentalQueuedRendering && result._experimentalQueuedRendering.enabled) {
-      const vnode = await componentFactory(pageProps);
+      let vnode = await componentFactory(pageProps);
+      if (componentFactory["astro:html"] && typeof vnode === "string") {
+        vnode = markHTMLString(vnode);
+      }
       const queue = await buildRenderQueue(
         vnode,
         result,
@@ -5854,6 +5949,15 @@ const default404Instance = {
   default: default404Page
 };
 
+const ROUTE404_RE = /^\/404\/?$/;
+const ROUTE500_RE = /^\/500\/?$/;
+function isRoute404(route) {
+  return ROUTE404_RE.test(route);
+}
+function isRoute500(route) {
+  return ROUTE500_RE.test(route);
+}
+
 function findRouteToRewrite({
   payload,
   routes,
@@ -5869,34 +5973,28 @@ function findRouteToRewrite({
   } else if (payload instanceof Request) {
     newUrl = new URL(payload.url);
   } else {
-    newUrl = new URL(payload, new URL(request.url).origin);
+    newUrl = new URL(collapseDuplicateSlashes(payload), new URL(request.url).origin);
   }
-  let pathname = newUrl.pathname;
-  const shouldAppendSlash = shouldAppendForwardSlash(trailingSlash, buildFormat);
-  if (base !== "/") {
-    const isBasePathRequest = newUrl.pathname === base || newUrl.pathname === removeTrailingForwardSlash(base);
-    if (isBasePathRequest) {
-      pathname = shouldAppendSlash ? "/" : "";
-    } else if (newUrl.pathname.startsWith(base)) {
-      pathname = shouldAppendSlash ? appendForwardSlash(newUrl.pathname) : removeTrailingForwardSlash(newUrl.pathname);
-      pathname = pathname.slice(base.length);
+  const { pathname, resolvedUrlPathname } = normalizeRewritePathname(
+    newUrl.pathname,
+    base,
+    trailingSlash,
+    buildFormat
+  );
+  newUrl.pathname = resolvedUrlPathname;
+  const decodedPathname = decodeURI(pathname);
+  if (isRoute404(decodedPathname)) {
+    const errorRoute = routes.find((route) => route.route === "/404");
+    if (errorRoute) {
+      return { routeData: errorRoute, newUrl, pathname: decodedPathname };
     }
   }
-  if (!pathname.startsWith("/") && shouldAppendSlash && newUrl.pathname.endsWith("/")) {
-    pathname = prependForwardSlash(pathname);
+  if (isRoute500(decodedPathname)) {
+    const errorRoute = routes.find((route) => route.route === "/500");
+    if (errorRoute) {
+      return { routeData: errorRoute, newUrl, pathname: decodedPathname };
+    }
   }
-  if (pathname === "/" && base !== "/" && !shouldAppendSlash) {
-    pathname = "";
-  }
-  if (buildFormat === "file") {
-    pathname = pathname.replace(/\.html$/, "");
-  }
-  if (base !== "/" && (pathname === "" || pathname === "/") && !shouldAppendSlash) {
-    newUrl.pathname = removeTrailingForwardSlash(base);
-  } else {
-    newUrl.pathname = joinPaths(...[base, pathname].filter(Boolean));
-  }
-  const decodedPathname = decodeURI(pathname);
   let foundRoute;
   for (const route of routes) {
     if (route.pattern.test(decodedPathname)) {
@@ -5975,6 +6073,35 @@ function getOriginPathname(request) {
     return decodeURIComponent(origin);
   }
   return new URL(request.url).pathname;
+}
+function normalizeRewritePathname(urlPathname, base, trailingSlash, buildFormat) {
+  let pathname = collapseDuplicateSlashes(urlPathname);
+  const shouldAppendSlash = shouldAppendForwardSlash(trailingSlash, buildFormat);
+  if (base !== "/") {
+    const isBasePathRequest = urlPathname === base || urlPathname === removeTrailingForwardSlash(base);
+    if (isBasePathRequest) {
+      pathname = shouldAppendSlash ? "/" : "";
+    } else if (urlPathname.startsWith(base)) {
+      pathname = shouldAppendSlash ? appendForwardSlash(urlPathname) : removeTrailingForwardSlash(urlPathname);
+      pathname = pathname.slice(base.length);
+    }
+  }
+  if (!pathname.startsWith("/") && shouldAppendSlash && urlPathname.endsWith("/")) {
+    pathname = prependForwardSlash(pathname);
+  }
+  if (pathname === "/" && base !== "/" && !shouldAppendSlash) {
+    pathname = "";
+  }
+  if (buildFormat === "file") {
+    pathname = pathname.replace(/\.html$/, "");
+  }
+  let resolvedUrlPathname;
+  if (base !== "/" && (pathname === "" || pathname === "/") && !shouldAppendSlash) {
+    resolvedUrlPathname = removeTrailingForwardSlash(base);
+  } else {
+    resolvedUrlPathname = joinPaths(...[base, pathname].filter(Boolean));
+  }
+  return { pathname, resolvedUrlPathname };
 }
 
 const NOOP_ACTIONS_MOD = {
@@ -6926,6 +7053,13 @@ class Pipeline {
       return this.resolvedMiddleware;
     }
   }
+  /**
+   * Clears the cached middleware so it is re-resolved on the next request.
+   * Called via HMR when middleware files change during development.
+   */
+  clearMiddleware() {
+    this.resolvedMiddleware = void 0;
+  }
   async getActions() {
     if (this.resolvedActions) {
       return this.resolvedActions;
@@ -7027,15 +7161,6 @@ class Pipeline {
   }
 }
 
-const ROUTE404_RE = /^\/404\/?$/;
-const ROUTE500_RE = /^\/500\/?$/;
-function isRoute404(route) {
-  return ROUTE404_RE.test(route);
-}
-function isRoute500(route) {
-  return ROUTE500_RE.test(route);
-}
-
 function routeIsRedirect(route) {
   return route?.type === "redirect";
 }
@@ -7055,6 +7180,11 @@ function getFallbackRoute(route, routeList) {
     throw new Error(`No fallback route found for route ${route.route}`);
   }
   return fallbackRoute.routeData;
+}
+function routeHasHtmlExtension(route) {
+  return route.segments.some(
+    (segment) => segment.some((part) => !part.dynamic && part.content.includes(".html"))
+  );
 }
 
 async function getProps(opts) {
@@ -7099,11 +7229,9 @@ async function getProps(opts) {
 }
 function getParams(route, pathname) {
   if (!route.params.length) return {};
-  let path = pathname;
-  if (pathname.endsWith(".html")) {
-    path = path.slice(0, -5);
-  }
-  const paramsMatch = route.pattern.exec(path) || route.fallbackRoutes.map((fallbackRoute) => fallbackRoute.pattern.exec(path)).find((x) => x);
+  const path = pathname.endsWith(".html") && !routeHasHtmlExtension(route) ? pathname.slice(0, -5) : pathname;
+  const allPatterns = [route, ...route.fallbackRoutes].map((r) => r.pattern);
+  const paramsMatch = allPatterns.map((pattern) => pattern.exec(path)).find((x) => x);
   if (!paramsMatch) return {};
   const params = {};
   route.params.forEach((key, i) => {
@@ -7274,31 +7402,12 @@ function redirectIsExternal(redirect) {
     return isExternalURL(redirect.destination);
   }
 }
-async function renderRedirect(renderContext) {
-  const {
-    request: { method },
-    routeData
-  } = renderContext;
-  const { redirect, redirectRoute } = routeData;
-  const status = redirectRoute && typeof redirect === "object" ? redirect.status : method === "GET" ? 301 : 308;
-  const headers = { location: encodeURI(redirectRouteGenerate(renderContext)) };
-  if (redirect && redirectIsExternal(redirect)) {
-    if (typeof redirect === "string") {
-      return Response.redirect(redirect, status);
-    } else {
-      return Response.redirect(redirect.destination, status);
-    }
-  }
-  return new Response(null, { status, headers });
+function computeRedirectStatus(method, redirect, redirectRoute) {
+  return redirectRoute && typeof redirect === "object" ? redirect.status : method === "GET" ? 301 : 308;
 }
-function redirectRouteGenerate(renderContext) {
-  const {
-    params,
-    routeData: { redirect, redirectRoute },
-    pipeline
-  } = renderContext;
+function resolveRedirectTarget(params, redirect, redirectRoute, trailingSlash) {
   if (typeof redirectRoute !== "undefined") {
-    const generate = getRouteGenerator(redirectRoute.segments, pipeline.manifest.trailingSlash);
+    const generate = getRouteGenerator(redirectRoute.segments, trailingSlash);
     return generate(params);
   } else if (typeof redirect === "string") {
     if (redirectIsExternal(redirect)) {
@@ -7316,8 +7425,42 @@ function redirectRouteGenerate(renderContext) {
   }
   return redirect.destination;
 }
+async function renderRedirect(renderContext) {
+  const {
+    request: { method },
+    routeData
+  } = renderContext;
+  const { redirect, redirectRoute } = routeData;
+  const status = computeRedirectStatus(method, redirect, redirectRoute);
+  const headers = {
+    location: encodeURI(
+      resolveRedirectTarget(
+        renderContext.params,
+        redirect,
+        redirectRoute,
+        renderContext.pipeline.manifest.trailingSlash
+      )
+    )
+  };
+  if (redirect && redirectIsExternal(redirect)) {
+    if (typeof redirect === "string") {
+      return Response.redirect(redirect, status);
+    } else {
+      return Response.redirect(redirect.destination, status);
+    }
+  }
+  return new Response(null, { status, headers });
+}
 
 function matchRoute(pathname, manifest) {
+  if (isRoute404(pathname)) {
+    const errorRoute = manifest.routes.find((route) => isRoute404(route.route));
+    if (errorRoute) return errorRoute;
+  }
+  if (isRoute500(pathname)) {
+    const errorRoute = manifest.routes.find((route) => isRoute500(route.route));
+    if (errorRoute) return errorRoute;
+  }
   return manifest.routes.find((route) => {
     return route.pattern.test(pathname) || route.fallbackRoutes.some((fallbackRoute) => fallbackRoute.pattern.test(pathname));
   });
@@ -8639,6 +8782,12 @@ class RenderContext {
       }
       pathname = pathname && !isRoute404or500(routeData) ? pathname : url.pathname;
       computedLocale = computeCurrentLocale(pathname, locales, defaultLocale);
+      if (routeData.params.length > 0) {
+        const localeFromParams = computeCurrentLocaleFromParams(this.params, locales);
+        if (localeFromParams) {
+          computedLocale = localeFromParams;
+        }
+      }
     }
     this.#currentLocale = computedLocale ?? fallbackTo;
     return this.#currentLocale;
@@ -9049,7 +9198,7 @@ class BaseApp {
       });
     }
     let pathname = this.getPathnameFromRequest(request);
-    if (this.isDev()) {
+    if (this.isDev() && !routeHasHtmlExtension(routeData)) {
       pathname = pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "");
     }
     const defaultStatus = this.getDefaultStatusCode(routeData, pathname);
@@ -9328,13 +9477,24 @@ function getAssetsPrefix(fileExtension, assetsPrefix) {
   return prefix;
 }
 
+const URL_PARSE_BASE = "https://astro.build";
+function splitAssetPath(path) {
+  const parsed = new URL(path, URL_PARSE_BASE);
+  const isAbsolute = URL.canParse(path);
+  const pathname = !isAbsolute && !path.startsWith("/") ? parsed.pathname.slice(1) : parsed.pathname;
+  return {
+    pathname,
+    suffix: `${parsed.search}${parsed.hash}`
+  };
+}
 function createAssetLink(href, base, assetsPrefix, queryParams) {
+  const { pathname, suffix } = splitAssetPath(href);
   let url = "";
   if (assetsPrefix) {
-    const pf = getAssetsPrefix(fileExtension(href), assetsPrefix);
-    url = joinPaths(pf, slash(href));
+    const pf = getAssetsPrefix(fileExtension(pathname), assetsPrefix);
+    url = joinPaths(pf, slash(pathname)) + suffix;
   } else if (base) {
-    url = prependForwardSlash(joinPaths(base, slash(href)));
+    url = prependForwardSlash(joinPaths(base, slash(pathname))) + suffix;
   } else {
     url = href;
   }
@@ -9521,12 +9681,12 @@ const renderers = [];
 const serializedData = [{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"type":"page","component":"_server-islands.astro","params":["name"],"segments":[[{"content":"_server-islands","dynamic":false,"spread":false}],[{"content":"name","dynamic":true,"spread":false}]],"pattern":"^\\/_server-islands\\/([^/]+?)\\/?$","prerender":false,"isIndex":false,"fallbackRoutes":[],"route":"/_server-islands/[name]","origin":"internal","distURL":[],"_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/_image","component":"node_modules/astro/dist/assets/endpoint/generic.js","params":[],"pathname":"/_image","pattern":"^\\/_image\\/?$","segments":[[{"content":"_image","dynamic":false,"spread":false}]],"type":"endpoint","prerender":false,"fallbackRoutes":[],"distURL":[],"isIndex":false,"origin":"internal","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/debug","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/debug\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"debug","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/api/debug.ts","pathname":"/api/debug","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/player-stats/[id]","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/player-stats\\/([^/]+?)\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"player-stats","dynamic":false,"spread":false}],[{"content":"id","dynamic":true,"spread":false}]],"params":["id"],"component":"src/pages/api/player-stats/[id].ts","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/players","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/players\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"players","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/api/players.ts","pathname":"/api/players","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/scoreboard","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/scoreboard\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"scoreboard","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/api/scoreboard.ts","pathname":"/api/scoreboard","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/","isIndex":true,"type":"page","pattern":"^\\/$","segments":[],"params":[],"component":"src/pages/index.astro","pathname":"/","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}}];
 				serializedData.map(deserializeRouteInfo);
 
-const _page0 = () => import('./generic_B1wgCO3U.mjs').then(n => n.g);
+const _page0 = () => import('./generic_DCx8IR6y.mjs').then(n => n.g);
 const _page1 = () => import('./debug_dwhcEtKQ.mjs');
 const _page2 = () => import('./_id__Ytxbp2gH.mjs');
 const _page3 = () => import('./players_CoqgKpgn.mjs');
 const _page4 = () => import('./scoreboard_BsuLHEmL.mjs');
-const _page5 = () => import('./index_1EhI0QZB.mjs');
+const _page5 = () => import('./index_Ckn_L4pX.mjs');
 const pageMap = new Map([
     ["node_modules/astro/dist/assets/endpoint/generic.js", _page0],
     ["src/pages/api/debug.ts", _page1],
@@ -9536,7 +9696,7 @@ const pageMap = new Map([
     ["src/pages/index.astro", _page5]
 ]);
 
-const _manifest = deserializeManifest(({"rootDir":"file:///C:/Users/48803094/Documents/GitHub/TP1_Front/","cacheDir":"file:///C:/Users/48803094/Documents/GitHub/TP1_Front/node_modules/.astro/","outDir":"file:///C:/Users/48803094/Documents/GitHub/TP1_Front/dist/","srcDir":"file:///C:/Users/48803094/Documents/GitHub/TP1_Front/src/","publicDir":"file:///C:/Users/48803094/Documents/GitHub/TP1_Front/public/","buildClientDir":"file:///C:/Users/48803094/Documents/GitHub/TP1_Front/dist/client/","buildServerDir":"file:///C:/Users/48803094/Documents/GitHub/TP1_Front/dist/server/","adapterName":"@astrojs/vercel","assetsDir":"_astro","routes":[{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"type":"page","component":"_server-islands.astro","params":["name"],"segments":[[{"content":"_server-islands","dynamic":false,"spread":false}],[{"content":"name","dynamic":true,"spread":false}]],"pattern":"^\\/_server-islands\\/([^/]+?)\\/?$","prerender":false,"isIndex":false,"fallbackRoutes":[],"route":"/_server-islands/[name]","origin":"internal","distURL":[],"_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/_image","component":"node_modules/astro/dist/assets/endpoint/generic.js","params":[],"pathname":"/_image","pattern":"^\\/_image\\/?$","segments":[[{"content":"_image","dynamic":false,"spread":false}]],"type":"endpoint","prerender":false,"fallbackRoutes":[],"distURL":[],"isIndex":false,"origin":"internal","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/debug","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/debug\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"debug","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/api/debug.ts","pathname":"/api/debug","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/player-stats/[id]","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/player-stats\\/([^/]+?)\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"player-stats","dynamic":false,"spread":false}],[{"content":"id","dynamic":true,"spread":false}]],"params":["id"],"component":"src/pages/api/player-stats/[id].ts","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/players","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/players\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"players","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/api/players.ts","pathname":"/api/players","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/scoreboard","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/scoreboard\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"scoreboard","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/api/scoreboard.ts","pathname":"/api/scoreboard","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/index@_@astro.DFuBrGQM.css"}],"routeData":{"route":"/","isIndex":true,"type":"page","pattern":"^\\/$","segments":[],"params":[],"component":"src/pages/index.astro","pathname":"/","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}}],"serverLike":true,"middlewareMode":"classic","base":"/","trailingSlash":"ignore","compressHTML":true,"experimentalQueuedRendering":{"enabled":false,"poolSize":0,"contentCache":false},"componentMetadata":[["C:/Users/48803094/Documents/GitHub/TP1_Front/src/pages/index.astro",{"propagation":"none","containsHead":true}]],"renderers":[],"clientDirectives":[["idle","(()=>{var l=(n,t)=>{let i=async()=>{await(await n())()},e=typeof t.value==\"object\"?t.value:void 0,s={timeout:e==null?void 0:e.timeout};\"requestIdleCallback\"in window?window.requestIdleCallback(i,s):setTimeout(i,s.timeout||200)};(self.Astro||(self.Astro={})).idle=l;window.dispatchEvent(new Event(\"astro:idle\"));})();"],["load","(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event(\"astro:load\"));})();"],["media","(()=>{var n=(a,t)=>{let i=async()=>{await(await a())()};if(t.value){let e=matchMedia(t.value);e.matches?i():e.addEventListener(\"change\",i,{once:!0})}};(self.Astro||(self.Astro={})).media=n;window.dispatchEvent(new Event(\"astro:media\"));})();"],["only","(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).only=e;window.dispatchEvent(new Event(\"astro:only\"));})();"],["visible","(()=>{var a=(s,i,o)=>{let r=async()=>{await(await s())()},t=typeof i.value==\"object\"?i.value:void 0,c={rootMargin:t==null?void 0:t.rootMargin},n=new IntersectionObserver(e=>{for(let l of e)if(l.isIntersecting){n.disconnect(),r();break}},c);for(let e of o.children)n.observe(e)};(self.Astro||(self.Astro={})).visible=a;window.dispatchEvent(new Event(\"astro:visible\"));})();"]],"entryModules":{"\u0000noop-middleware":"chunks/_noop-middleware_CxX_NzRo.mjs","@astrojs/vercel/entrypoint":"entry.mjs","\u0000virtual:astro:actions/noop-entrypoint":"chunks/noop-entrypoint_BOlrdqWF.mjs","\u0000virtual:astro:session-driver":"chunks/_virtual_astro_session-driver_DYx9Bb3p.mjs","\u0000virtual:astro:server-island-manifest":"chunks/_virtual_astro_server-island-manifest_DbYJcf_U.mjs","\u0000virtual:astro:page:src/pages/api/debug@_@ts":"chunks/debug_dwhcEtKQ.mjs","\u0000virtual:astro:page:src/pages/api/player-stats/[id]@_@ts":"chunks/_id__Ytxbp2gH.mjs","\u0000virtual:astro:page:src/pages/api/players@_@ts":"chunks/players_CoqgKpgn.mjs","\u0000virtual:astro:page:src/pages/api/scoreboard@_@ts":"chunks/scoreboard_BsuLHEmL.mjs","\u0000virtual:astro:page:src/pages/index@_@astro":"chunks/index_1EhI0QZB.mjs","C:/Users/48803094/Documents/GitHub/TP1_Front/node_modules/astro/dist/assets/services/sharp.js":"chunks/sharp_BBPTPtqd.mjs","C:/Users/48803094/Documents/GitHub/TP1_Front/node_modules/astro/dist/entrypoints/prerender.js":"prerender-entry.Ct6YUnGN.mjs","C:/Users/48803094/Documents/GitHub/TP1_Front/src/components/Animation_logo.astro?astro&type=script&index=0&lang.ts":"_astro/Animation_logo.astro_astro_type_script_index_0_lang.CKyH9nrc.js","C:/Users/48803094/Documents/GitHub/TP1_Front/src/components/ScoreBoard.astro?astro&type=script&index=0&lang.ts":"_astro/ScoreBoard.astro_astro_type_script_index_0_lang.BZa2vNMz.js","C:/Users/48803094/Documents/GitHub/TP1_Front/src/components/ThemeToggle.astro?astro&type=script&index=0&lang.ts":"_astro/ThemeToggle.astro_astro_type_script_index_0_lang.DhIUc46r.js","astro:scripts/before-hydration.js":""},"inlinedScripts":[["C:/Users/48803094/Documents/GitHub/TP1_Front/src/components/Animation_logo.astro?astro&type=script&index=0&lang.ts","const d=document.getElementById(\"ball-animation\"),u=document.getElementById(\"ball-svg\"),w=document.getElementById(\"page-content\"),A=w?.querySelector(\".courtside-logo\");if(d&&u&&w&&A){let p=function(){try{e=new AudioContext,e.state===\"suspended\"&&e.resume();const t=()=>{e&&e.state===\"suspended\"&&e.resume(),$=!0,document.removeEventListener(\"click\",t),document.removeEventListener(\"touchstart\",t),document.removeEventListener(\"keydown\",t)};document.addEventListener(\"click\",t,{once:!0}),document.addEventListener(\"touchstart\",t,{once:!0}),document.addEventListener(\"keydown\",t,{once:!0})}catch{e=null}},f=function(t,o,c,i,s){const n=1-t;return n*n*n*o+3*n*n*t*c+3*n*t*t*i+t*t*t*s},b=function(t){return 1-Math.pow(1-t,4)},E=function(t){I||(I=t,C());const o=t-I,c=Math.min(o/V,1),i=b(c),s=f(i,g.x,R.x,B.x,v.x),n=f(i,g.y,R.y,B.y,v.y),a=S+(L-S)*i,r=q*i,m=(.6*Math.max(0,1-i*1.1)).toFixed(2),y=(14*Math.max(0,1-i*1.1)).toFixed(1);d.style.transform=`translate(${s-a/2}px, ${n-a/2}px)`,u.style.width=`${a}px`,u.style.height=`${a}px`,u.style.transform=`rotate(${r}deg)`,u.style.filter=`drop-shadow(0 4px ${y}px rgba(232, 69, 14, ${m}))`,c<1?requestAnimationFrame(E):(u.style.transform=\"rotate(0deg)\",u.style.filter=\"none\",F(),d.animate([{opacity:1},{opacity:0}],{duration:150,fill:\"forwards\",easing:\"ease-in\"}).onfinish=()=>{d.style.display=\"none\"},w.style.opacity=\"1\")};const S=780,V=1200,q=-720,h=window.innerWidth,T=window.innerHeight,g={x:h*.5,y:T*.5},l=A.getBoundingClientRect(),v={x:l.left+l.width/2,y:l.top+l.height/2},x=A.querySelector(\"svg\"),L=x?Math.max(x.getBoundingClientRect().width,x.getBoundingClientRect().height):Math.max(l.width,l.height),R={x:h*.06,y:T*.65},B={x:h*.04,y:T*.08};d.style.transform=`translate(${g.x-780/2}px, ${g.y-780/2}px)`,u.style.width=\"780px\",u.style.height=\"780px\",d.style.opacity=\"1\";let e=null,$=!1;async function C(){if(!e)return;if(e.state===\"suspended\")try{await e.resume()}catch{}if(e.state!==\"running\")return;const t=.9,o=e.sampleRate*t,c=e.createBuffer(1,o,e.sampleRate),i=c.getChannelData(0);for(let r=0;r<o;r++)i[r]=Math.random()*2-1;const s=e.createBufferSource();s.buffer=c;const n=e.createBiquadFilter();n.type=\"bandpass\",n.Q.value=1.5,n.frequency.setValueAtTime(300,e.currentTime),n.frequency.exponentialRampToValueAtTime(2500,e.currentTime+t*.4),n.frequency.exponentialRampToValueAtTime(800,e.currentTime+t);const a=e.createGain();a.gain.setValueAtTime(0,e.currentTime),a.gain.linearRampToValueAtTime(.18,e.currentTime+.06),a.gain.setValueAtTime(.18,e.currentTime+t*.3),a.gain.exponentialRampToValueAtTime(.001,e.currentTime+t),s.connect(n),n.connect(a),a.connect(e.destination),s.start()}async function F(){if(!e)return;if(e.state===\"suspended\")try{await e.resume()}catch{}if(e.state!==\"running\")return;const t=e.currentTime,o=e.createOscillator();o.type=\"sine\",o.frequency.setValueAtTime(180,t),o.frequency.exponentialRampToValueAtTime(60,t+.12);const c=e.createGain();c.gain.setValueAtTime(.22,t),c.gain.exponentialRampToValueAtTime(.001,t+.15),o.connect(c),c.connect(e.destination),o.start(t),o.stop(t+.15);const i=.05,s=e.createBuffer(1,e.sampleRate*i,e.sampleRate),n=s.getChannelData(0);for(let y=0;y<n.length;y++)n[y]=Math.random()*2-1;const a=e.createBufferSource();a.buffer=s;const r=e.createBiquadFilter();r.type=\"highpass\",r.frequency.value=2e3;const m=e.createGain();m.gain.setValueAtTime(.12,t),m.gain.exponentialRampToValueAtTime(.001,t+i),a.connect(r),r.connect(m),m.connect(e.destination),a.start(t)}p();let I=null;requestAnimationFrame(E)}else{const p=document.getElementById(\"page-content\"),f=document.getElementById(\"ball-animation\");p&&(p.style.opacity=\"1\"),f&&(f.style.display=\"none\")}"],["C:/Users/48803094/Documents/GitHub/TP1_Front/src/components/ThemeToggle.astro?astro&type=script&index=0&lang.ts","const r=document.getElementById(\"theme-toggle\"),e=\"courtside_theme\";function n(){return localStorage.getItem(e)||\"dark\"}function c(t){document.documentElement.setAttribute(\"data-theme\",t),localStorage.setItem(e,t)}c(n());r.addEventListener(\"click\",()=>{const o=n()===\"dark\"?\"light\":\"dark\";c(o)});"]],"assets":["/favicon.ico","/favicon.svg","/_astro/ScoreBoard.astro_astro_type_script_index_0_lang.BZa2vNMz.js"],"buildFormat":"directory","checkOrigin":true,"actionBodySizeLimit":1048576,"serverIslandBodySizeLimit":1048576,"allowedDomains":[],"key":"cDxhaEG1Nk/+AAVYYsuhb7TJVjIS92XW6gRHfDb9fe0=","image":{},"devToolbar":{"enabled":false,"debugInfoOutput":""},"logLevel":"info","shouldInjectCspMetaTags":false}));
+const _manifest = deserializeManifest(({"rootDir":"file:///C:/Users/User/Documents/GitHub/TP1_Front/","cacheDir":"file:///C:/Users/User/Documents/GitHub/TP1_Front/node_modules/.astro/","outDir":"file:///C:/Users/User/Documents/GitHub/TP1_Front/dist/","srcDir":"file:///C:/Users/User/Documents/GitHub/TP1_Front/src/","publicDir":"file:///C:/Users/User/Documents/GitHub/TP1_Front/public/","buildClientDir":"file:///C:/Users/User/Documents/GitHub/TP1_Front/dist/client/","buildServerDir":"file:///C:/Users/User/Documents/GitHub/TP1_Front/dist/server/","adapterName":"@astrojs/vercel","assetsDir":"_astro","routes":[{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"type":"page","component":"_server-islands.astro","params":["name"],"segments":[[{"content":"_server-islands","dynamic":false,"spread":false}],[{"content":"name","dynamic":true,"spread":false}]],"pattern":"^\\/_server-islands\\/([^/]+?)\\/?$","prerender":false,"isIndex":false,"fallbackRoutes":[],"route":"/_server-islands/[name]","origin":"internal","distURL":[],"_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/_image","component":"node_modules/astro/dist/assets/endpoint/generic.js","params":[],"pathname":"/_image","pattern":"^\\/_image\\/?$","segments":[[{"content":"_image","dynamic":false,"spread":false}]],"type":"endpoint","prerender":false,"fallbackRoutes":[],"distURL":[],"isIndex":false,"origin":"internal","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/debug","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/debug\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"debug","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/api/debug.ts","pathname":"/api/debug","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/player-stats/[id]","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/player-stats\\/([^/]+?)\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"player-stats","dynamic":false,"spread":false}],[{"content":"id","dynamic":true,"spread":false}]],"params":["id"],"component":"src/pages/api/player-stats/[id].ts","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/players","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/players\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"players","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/api/players.ts","pathname":"/api/players","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[],"routeData":{"route":"/api/scoreboard","isIndex":false,"type":"endpoint","pattern":"^\\/api\\/scoreboard\\/?$","segments":[[{"content":"api","dynamic":false,"spread":false}],[{"content":"scoreboard","dynamic":false,"spread":false}]],"params":[],"component":"src/pages/api/scoreboard.ts","pathname":"/api/scoreboard","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}},{"file":"","links":[],"scripts":[],"styles":[{"type":"external","src":"_astro/index@_@astro.DFuBrGQM.css"}],"routeData":{"route":"/","isIndex":true,"type":"page","pattern":"^\\/$","segments":[],"params":[],"component":"src/pages/index.astro","pathname":"/","prerender":false,"fallbackRoutes":[],"distURL":[],"origin":"project","_meta":{"trailingSlash":"ignore"}}}],"serverLike":true,"middlewareMode":"classic","base":"/","trailingSlash":"ignore","compressHTML":true,"experimentalQueuedRendering":{"enabled":false,"poolSize":0,"contentCache":false},"componentMetadata":[["C:/Users/User/Documents/GitHub/TP1_Front/src/pages/index.astro",{"propagation":"none","containsHead":true}]],"renderers":[],"clientDirectives":[["idle","(()=>{var l=(n,t)=>{let i=async()=>{await(await n())()},e=typeof t.value==\"object\"?t.value:void 0,s={timeout:e==null?void 0:e.timeout};\"requestIdleCallback\"in window?window.requestIdleCallback(i,s):setTimeout(i,s.timeout||200)};(self.Astro||(self.Astro={})).idle=l;window.dispatchEvent(new Event(\"astro:idle\"));})();"],["load","(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event(\"astro:load\"));})();"],["media","(()=>{var n=(a,t)=>{let i=async()=>{await(await a())()};if(t.value){let e=matchMedia(t.value);e.matches?i():e.addEventListener(\"change\",i,{once:!0})}};(self.Astro||(self.Astro={})).media=n;window.dispatchEvent(new Event(\"astro:media\"));})();"],["only","(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).only=e;window.dispatchEvent(new Event(\"astro:only\"));})();"],["visible","(()=>{var a=(s,i,o)=>{let r=async()=>{await(await s())()},t=typeof i.value==\"object\"?i.value:void 0,c={rootMargin:t==null?void 0:t.rootMargin},n=new IntersectionObserver(e=>{for(let l of e)if(l.isIntersecting){n.disconnect(),r();break}},c);for(let e of o.children)n.observe(e)};(self.Astro||(self.Astro={})).visible=a;window.dispatchEvent(new Event(\"astro:visible\"));})();"]],"entryModules":{"astro/entrypoints/prerender":"prerender-entry.CI2YxR06.mjs","\u0000virtual:astro:actions/noop-entrypoint":"chunks/noop-entrypoint_BOlrdqWF.mjs","\u0000noop-middleware":"virtual_astro_middleware.mjs","\u0000virtual:astro:session-driver":"chunks/_virtual_astro_session-driver_DYx9Bb3p.mjs","\u0000virtual:astro:server-island-manifest":"chunks/_virtual_astro_server-island-manifest_CQQ1F5PF.mjs","@astrojs/vercel/entrypoint":"entry.mjs","\u0000virtual:astro:page:src/pages/api/debug@_@ts":"chunks/debug_dwhcEtKQ.mjs","\u0000virtual:astro:page:src/pages/api/player-stats/[id]@_@ts":"chunks/_id__Ytxbp2gH.mjs","\u0000virtual:astro:page:src/pages/api/players@_@ts":"chunks/players_CoqgKpgn.mjs","\u0000virtual:astro:page:src/pages/api/scoreboard@_@ts":"chunks/scoreboard_BsuLHEmL.mjs","\u0000virtual:astro:page:src/pages/index@_@astro":"chunks/index_Ckn_L4pX.mjs","C:/Users/User/Documents/GitHub/TP1_Front/node_modules/astro/dist/assets/services/sharp.js":"chunks/sharp_DSIMMQWv.mjs","C:/Users/User/Documents/GitHub/TP1_Front/src/components/Animation_logo.astro?astro&type=script&index=0&lang.ts":"_astro/Animation_logo.astro_astro_type_script_index_0_lang.CKyH9nrc.js","C:/Users/User/Documents/GitHub/TP1_Front/src/components/ScoreBoard.astro?astro&type=script&index=0&lang.ts":"_astro/ScoreBoard.astro_astro_type_script_index_0_lang.BZa2vNMz.js","C:/Users/User/Documents/GitHub/TP1_Front/src/components/ThemeToggle.astro?astro&type=script&index=0&lang.ts":"_astro/ThemeToggle.astro_astro_type_script_index_0_lang.DhIUc46r.js","astro:scripts/before-hydration.js":""},"inlinedScripts":[["C:/Users/User/Documents/GitHub/TP1_Front/src/components/Animation_logo.astro?astro&type=script&index=0&lang.ts","const d=document.getElementById(\"ball-animation\"),u=document.getElementById(\"ball-svg\"),w=document.getElementById(\"page-content\"),A=w?.querySelector(\".courtside-logo\");if(d&&u&&w&&A){let p=function(){try{e=new AudioContext,e.state===\"suspended\"&&e.resume();const t=()=>{e&&e.state===\"suspended\"&&e.resume(),$=!0,document.removeEventListener(\"click\",t),document.removeEventListener(\"touchstart\",t),document.removeEventListener(\"keydown\",t)};document.addEventListener(\"click\",t,{once:!0}),document.addEventListener(\"touchstart\",t,{once:!0}),document.addEventListener(\"keydown\",t,{once:!0})}catch{e=null}},f=function(t,o,c,i,s){const n=1-t;return n*n*n*o+3*n*n*t*c+3*n*t*t*i+t*t*t*s},b=function(t){return 1-Math.pow(1-t,4)},E=function(t){I||(I=t,C());const o=t-I,c=Math.min(o/V,1),i=b(c),s=f(i,g.x,R.x,B.x,v.x),n=f(i,g.y,R.y,B.y,v.y),a=S+(L-S)*i,r=q*i,m=(.6*Math.max(0,1-i*1.1)).toFixed(2),y=(14*Math.max(0,1-i*1.1)).toFixed(1);d.style.transform=`translate(${s-a/2}px, ${n-a/2}px)`,u.style.width=`${a}px`,u.style.height=`${a}px`,u.style.transform=`rotate(${r}deg)`,u.style.filter=`drop-shadow(0 4px ${y}px rgba(232, 69, 14, ${m}))`,c<1?requestAnimationFrame(E):(u.style.transform=\"rotate(0deg)\",u.style.filter=\"none\",F(),d.animate([{opacity:1},{opacity:0}],{duration:150,fill:\"forwards\",easing:\"ease-in\"}).onfinish=()=>{d.style.display=\"none\"},w.style.opacity=\"1\")};const S=780,V=1200,q=-720,h=window.innerWidth,T=window.innerHeight,g={x:h*.5,y:T*.5},l=A.getBoundingClientRect(),v={x:l.left+l.width/2,y:l.top+l.height/2},x=A.querySelector(\"svg\"),L=x?Math.max(x.getBoundingClientRect().width,x.getBoundingClientRect().height):Math.max(l.width,l.height),R={x:h*.06,y:T*.65},B={x:h*.04,y:T*.08};d.style.transform=`translate(${g.x-780/2}px, ${g.y-780/2}px)`,u.style.width=\"780px\",u.style.height=\"780px\",d.style.opacity=\"1\";let e=null,$=!1;async function C(){if(!e)return;if(e.state===\"suspended\")try{await e.resume()}catch{}if(e.state!==\"running\")return;const t=.9,o=e.sampleRate*t,c=e.createBuffer(1,o,e.sampleRate),i=c.getChannelData(0);for(let r=0;r<o;r++)i[r]=Math.random()*2-1;const s=e.createBufferSource();s.buffer=c;const n=e.createBiquadFilter();n.type=\"bandpass\",n.Q.value=1.5,n.frequency.setValueAtTime(300,e.currentTime),n.frequency.exponentialRampToValueAtTime(2500,e.currentTime+t*.4),n.frequency.exponentialRampToValueAtTime(800,e.currentTime+t);const a=e.createGain();a.gain.setValueAtTime(0,e.currentTime),a.gain.linearRampToValueAtTime(.18,e.currentTime+.06),a.gain.setValueAtTime(.18,e.currentTime+t*.3),a.gain.exponentialRampToValueAtTime(.001,e.currentTime+t),s.connect(n),n.connect(a),a.connect(e.destination),s.start()}async function F(){if(!e)return;if(e.state===\"suspended\")try{await e.resume()}catch{}if(e.state!==\"running\")return;const t=e.currentTime,o=e.createOscillator();o.type=\"sine\",o.frequency.setValueAtTime(180,t),o.frequency.exponentialRampToValueAtTime(60,t+.12);const c=e.createGain();c.gain.setValueAtTime(.22,t),c.gain.exponentialRampToValueAtTime(.001,t+.15),o.connect(c),c.connect(e.destination),o.start(t),o.stop(t+.15);const i=.05,s=e.createBuffer(1,e.sampleRate*i,e.sampleRate),n=s.getChannelData(0);for(let y=0;y<n.length;y++)n[y]=Math.random()*2-1;const a=e.createBufferSource();a.buffer=s;const r=e.createBiquadFilter();r.type=\"highpass\",r.frequency.value=2e3;const m=e.createGain();m.gain.setValueAtTime(.12,t),m.gain.exponentialRampToValueAtTime(.001,t+i),a.connect(r),r.connect(m),m.connect(e.destination),a.start(t)}p();let I=null;requestAnimationFrame(E)}else{const p=document.getElementById(\"page-content\"),f=document.getElementById(\"ball-animation\");p&&(p.style.opacity=\"1\"),f&&(f.style.display=\"none\")}"],["C:/Users/User/Documents/GitHub/TP1_Front/src/components/ThemeToggle.astro?astro&type=script&index=0&lang.ts","const r=document.getElementById(\"theme-toggle\"),e=\"courtside_theme\";function n(){return localStorage.getItem(e)||\"dark\"}function c(t){document.documentElement.setAttribute(\"data-theme\",t),localStorage.setItem(e,t)}c(n());r.addEventListener(\"click\",()=>{const o=n()===\"dark\"?\"light\":\"dark\";c(o)});"]],"assets":["/favicon.ico","/favicon.svg","/_astro/ScoreBoard.astro_astro_type_script_index_0_lang.BZa2vNMz.js","/_astro/index@_@astro.DFuBrGQM.css"],"buildFormat":"directory","checkOrigin":true,"actionBodySizeLimit":1048576,"serverIslandBodySizeLimit":1048576,"allowedDomains":[],"key":"SaT53vixE0drNGuyvKOOBXU4OekHocv5qXuRGRXhJJY=","image":{},"devToolbar":{"enabled":false,"debugInfoOutput":""},"logLevel":"info","shouldInjectCspMetaTags":false}));
 					const manifestRoutes = _manifest.routes;
 					
 					const manifest = Object.assign(_manifest, {
@@ -9545,7 +9705,7 @@ const _manifest = deserializeManifest(({"rootDir":"file:///C:/Users/48803094/Doc
 					  middleware: () => import('../virtual_astro_middleware.mjs'),
 					  sessionDriver: () => import('./_virtual_astro_session-driver_DYx9Bb3p.mjs'),
 					  
-					  serverIslandMappings: () => import('./_virtual_astro_server-island-manifest_DbYJcf_U.mjs'),
+					  serverIslandMappings: () => import('./_virtual_astro_server-island-manifest_CQQ1F5PF.mjs'),
 					  routes: manifestRoutes,
 					  pageMap,
 					});
