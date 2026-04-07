@@ -127,45 +127,73 @@ function renderGameCard(game: any): string {
 	</div>`;
 }
 
-// ---- RENDER: Player stat card ----
-function renderPlayerCard(player: any): string {
-	const initials = `${(player.firstName || player.name?.[0] || '?')[0]}${(player.lastName || player.name?.split(' ')[1]?.[0] || '?')[0]}`.toUpperCase();
+// ---- RENDER: Spotlight card (jersey + stats) ----
+function renderSpotlightCard(player: any): string {
 	const name = player.name || `${player.firstName} ${player.lastName}`;
 	const team = [player.teamCity, player.teamName || player.team].filter(Boolean).join(' ') || 'Free Agent';
-	const number = player.jerseyNumber ? `  |  #${player.jerseyNumber}` : '';
-	const position = player.position ? `  |  ${player.position}` : '';
+	const number = player.jerseyNumber || '00';
+	const position = player.position || '';
 
 	const s = player.seasonStats;
-	const pts = s?.pts?.toFixed(1) ?? '--';
-	const reb = s?.reb?.toFixed(1) ?? '--';
-	const ast = s?.ast?.toFixed(1) ?? '--';
-	const fg = s?.fgPct != null ? (s.fgPct * 100).toFixed(1) : '--';
+	const stats = [
+		{ label: 'PTS', value: s?.pts?.toFixed(1) ?? '--', accent: false },
+		{ label: 'REB', value: s?.reb?.toFixed(1) ?? '--', accent: false },
+		{ label: 'AST', value: s?.ast?.toFixed(1) ?? '--', accent: false },
+		{ label: 'STL', value: s?.stl?.toFixed(1) ?? '--', accent: false },
+		{ label: 'BLK', value: s?.blk?.toFixed(1) ?? '--', accent: false },
+		{ label: 'FG%', value: s?.fgPct != null ? (s.fgPct * 100).toFixed(1) : '--', accent: true },
+	];
+	const statsHtml = stats.map(st =>
+		`<div class="sl-stat">
+			<div class="sl-stat-value${st.accent ? ' accent' : ''}">${st.value}</div>
+			<div class="sl-stat-label">${st.label}</div>
+		</div>`
+	).join('');
+
+	const gp = s?.gp ?? '--';
+	const min = s?.min != null ? (typeof s.min === 'number' ? s.min.toFixed(1) : s.min) : '--';
+
+	return `
+	<div class="sl-card">
+		<div class="sl-jersey-wrap">
+			<svg class="sl-jersey" viewBox="0 0 140 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<defs>
+					<linearGradient id="jGrad" x1="20" y1="0" x2="120" y2="170" gradientUnits="userSpaceOnUse">
+						<stop offset="0%" stop-color="#E8450E"/>
+						<stop offset="100%" stop-color="#A12B08"/>
+					</linearGradient>
+				</defs>
+				<path d="M45 8 C55 2,85 2,95 8 L122 30 L110 45 L95 32 L95 160 L45 160 L45 32 L30 45 L18 30 Z"
+					fill="url(#jGrad)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+				<path d="M55 9 L70 26 L85 9" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+				<line x1="45" y1="55" x2="95" y2="55" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+				<text x="70" y="118" text-anchor="middle" font-size="50" font-weight="800" fill="rgba(255,255,255,0.85)" font-family="system-ui,sans-serif" letter-spacing="-2">${number}</text>
+			</svg>
+		</div>
+		<div class="sl-info">
+			<div class="sl-name">${name}</div>
+			<div class="sl-team">${team}${position ? '  |  ' + position : ''}</div>
+			${s ? `<div class="sl-season">${s.season} SEASON AVERAGES  ·  ${gp} GP  ·  ${min} MPG</div>` : ''}
+			<div class="sl-stats">${statsHtml}</div>
+		</div>
+	</div>`;
+}
+
+// ---- RENDER: Player search card (sin stats, ahorra API calls) ----
+function renderSearchCard(player: any): string {
+	const nameParts = player.name?.split(' ') || ['?', '?'];
+	const initials = `${nameParts[0][0]}${(nameParts[1] || '?')[0]}`.toUpperCase();
+	const team = player.team || 'Free Agent';
+	const number = player.jerseyNumber ? `  |  #${player.jerseyNumber}` : '';
+	const position = player.position ? `  |  ${player.position}` : '';
 
 	return `
 	<div class="player-card">
 		<div class="player-header">
 			<div class="player-avatar">${initials}</div>
 			<div>
-				<div class="player-name">${name}</div>
+				<div class="player-name">${player.name}</div>
 				<div class="player-meta">${team}${number}${position}</div>
-			</div>
-		</div>
-		<div class="stats-grid">
-			<div class="stat-box">
-				<div class="stat-label">PTS</div>
-				<div class="stat-value">${pts}</div>
-			</div>
-			<div class="stat-box">
-				<div class="stat-label">REB</div>
-				<div class="stat-value">${reb}</div>
-			</div>
-			<div class="stat-box">
-				<div class="stat-label">AST</div>
-				<div class="stat-value">${ast}</div>
-			</div>
-			<div class="stat-box">
-				<div class="stat-label">FG%</div>
-				<div class="stat-value accent">${fg}</div>
 			</div>
 		</div>
 	</div>`;
@@ -240,26 +268,8 @@ async function searchPlayers(query: string) {
 			return;
 		}
 
-		// Mostrar nombres inmediatamente, después cargar stats una por una
-		const cards: string[] = players.slice(0, 5).map((p: any) =>
-			renderPlayerCard({ ...p, seasonStats: null })
-		);
-		playerResults.innerHTML = cards.join('');
-
-		// Cargar stats secuencialmente y reemplazar cada card
-		for (let i = 0; i < Math.min(players.length, 5); i++) {
-			const p = players[i];
-			try {
-				const statsRes = await fetchRetry(`/api/player-stats/${p.id}`, 2, 1500);
-				const statsData = await statsRes.json();
-				if (statsData.player) {
-					cards[i] = renderPlayerCard(statsData.player);
-					playerResults.innerHTML = cards.join('');
-				}
-			} catch {
-				// Card ya está mostrando sin stats, la dejamos así
-			}
-		}
+		// Mostrar info básica (nombre/equipo/posición) sin cargar stats individuales
+		playerResults.innerHTML = players.slice(0, 10).map((p: any) => renderSearchCard(p)).join('');
 	} catch {
 		playerResults.innerHTML = '<div class="empty-state error">Search failed — try again in a moment</div>';
 	}

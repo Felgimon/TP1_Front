@@ -3,9 +3,12 @@
 
 import type { APIRoute } from 'astro';
 
+// Cache en memoria: playerId → { data, timestamp }
+const statsCache = new Map<string, { data: any; ts: number }>();
+const CACHE_TTL = 1000 * 60 * 60 * 6; // 6 horas
+
 function getCurrentSeasonYear(): number {
 	const now = new Date();
-	// La temporada NBA empieza en octubre (mes 9)
 	return now.getMonth() >= 9 ? now.getFullYear() : now.getFullYear() - 1;
 }
 
@@ -19,6 +22,15 @@ export const GET: APIRoute = async ({ params }) => {
 	}
 
 	try {
+		const now = Date.now();
+		const cached = statsCache.get(playerId);
+		if (cached && (now - cached.ts) < CACHE_TTL) {
+			return new Response(JSON.stringify({ player: cached.data }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
+
 		const apiKey = import.meta.env.BALLDONTLIE_API_KEY;
 		const season = getCurrentSeasonYear();
 
@@ -36,7 +48,6 @@ export const GET: APIRoute = async ({ params }) => {
 		const p = await playerRes.json();
 		const statsData = statsRes.ok ? await statsRes.json() : { data: [] };
 
-		// Si no hay stats para la temporada actual, intenta la anterior
 		let stats = statsData.data?.[0];
 		if (!stats) {
 			const prevRes = await fetch(
@@ -76,6 +87,8 @@ export const GET: APIRoute = async ({ params }) => {
 				min: parseFloat(stats.min) || 0,
 			} : null,
 		};
+
+		statsCache.set(playerId, { data: player, ts: now });
 
 		return new Response(JSON.stringify({ player }), {
 			status: 200,

@@ -2,17 +2,23 @@
 // GET /api/scoreboard → devuelve los partidos de hoy desde NBA.com CDN
 
 import type { APIRoute } from 'astro';
-import { fetchNbaCdn } from '../../lib/nba-proxy';
 
 export const GET: APIRoute = async () => {
 	try {
-		const data = await fetchNbaCdn('liveData/scoreboard/todaysScoreboard_00.json');
+		const res = await fetch('https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json', {
+			headers: {
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+				'Referer': 'https://www.nba.com/',
+			}
+		});
+		if (!res.ok) throw new Error(`NBA CDN ${res.status}`);
+		const data = await res.json();
 		const games = data?.scoreboard?.games || [];
 
 		const formatted = games.map((g: any) => ({
 			id: g.gameId,
 			status: g.gameStatusText?.trim() || '',
-			statusCode: g.gameStatus, // 1=upcoming, 2=live, 3=final
+			statusCode: g.gameStatus,
 			period: g.period,
 			clock: g.gameClock?.replace('PT', '').replace('M', ':').replace('S', '') || '',
 			homeTeam: {
