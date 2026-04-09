@@ -1,11 +1,53 @@
 ---
 // ScoreBoard.astro
 // Componente orquestador del dashboard NBA.
-// Consume API routes locales que hacen proxy a NBA.com (sin API key, sin rate limit).
+// Scoreboard: SSR (fetch NBA CDN server-side).
+// Players: datos estáticos embebidos (0 API calls).
 import TabBar from './TabBar.astro';
 import GamesGrid from './GamesGrid.astro';
 import PlayerSearch from './PlayerSearch.astro';
 import PlayerSpotlight from './PlayerSpotlight.astro';
+
+// ---- Fetch scoreboard server-side ----
+let gamesData: any[] = [];
+try {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 5000);
+	const res = await fetch('https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json', {
+		signal: controller.signal,
+		headers: {
+			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+			'Referer': 'https://www.nba.com/',
+		}
+	});
+	clearTimeout(timeout);
+	if (res.ok) {
+		const data = await res.json();
+		gamesData = (data?.scoreboard?.games || []).map((g: any) => ({
+			id: g.gameId,
+			status: g.gameStatusText?.trim() || '',
+			statusCode: g.gameStatus,
+			period: g.period,
+			clock: g.gameClock?.replace('PT', '').replace('M', ':').replace('S', '') || '',
+			homeTeam: {
+				id: g.homeTeam?.teamId,
+				name: g.homeTeam?.teamName,
+				city: g.homeTeam?.teamCity,
+				abbr: g.homeTeam?.teamTricode,
+				score: g.homeTeam?.score,
+			},
+			awayTeam: {
+				id: g.awayTeam?.teamId,
+				name: g.awayTeam?.teamName,
+				city: g.awayTeam?.teamCity,
+				abbr: g.awayTeam?.teamTricode,
+				score: g.awayTeam?.score,
+			},
+			arena: g.arenaName,
+			startTime: g.gameTimeUTC,
+		}));
+	}
+} catch {}
 ---
 
 <section class="scoreboard">
@@ -15,10 +57,17 @@ import PlayerSpotlight from './PlayerSpotlight.astro';
 	<PlayerSpotlight />
 </section>
 
+<!-- Scoreboard data del server -->
+<div id="games-data" data-games={JSON.stringify(gamesData)} style="display:none"></div>
+
 <script>
 // ==========================================================
-//  COURTSIDE — NBA SCOREBOARD (NBA.com proxy)
+//  COURTSIDE — NBA SCOREBOARD
+//  Scoreboard: server-rendered data (NBA CDN)
+//  Players: datos estáticos importados (0 API calls)
 // ==========================================================
+
+import { searchPlayers as findPlayers, players } from '../data/players';
 
 // ---- DOM refs ----
 const tabs = document.querySelectorAll('.tab') as NodeListOf<HTMLButtonElement>;
@@ -31,22 +80,6 @@ const spotlight = document.getElementById('spotlight') as HTMLElement;
 const spotlightCard = document.getElementById('spotlight-card') as HTMLElement;
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
-
-// ---- Fetch con reintentos (client-side) ----
-async function fetchRetry(url: string, maxRetries = 3, baseDelay = 2000): Promise<Response> {
-	for (let attempt = 0; attempt < maxRetries; attempt++) {
-		try {
-			const res = await fetch(url);
-			if (res.ok) return res;
-			// Si el server devolvió error, reintentamos
-			if (attempt === maxRetries - 1) return res;
-		} catch {
-			if (attempt === maxRetries - 1) throw new Error('fetch failed');
-		}
-		await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
-	}
-	throw new Error('fetch failed');
-}
 
 // ---- TABS ----
 tabs.forEach(tab => {
@@ -65,10 +98,9 @@ tabs.forEach(tab => {
 function renderGameCard(game: any): string {
 	const home = game.homeTeam;
 	const away = game.awayTeam;
-	const statusCode = game.statusCode; // 1=upcoming, 2=live, 3=final
+	const statusCode = game.statusCode;
 
 	if (statusCode === 1) {
-		// UPCOMING
 		const startDate = new Date(game.startTime);
 		const timeStr = !isNaN(startDate.getTime())
 			? startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
@@ -94,15 +126,21 @@ function renderGameCard(game: any): string {
 		</div>`;
 	}
 
-	// LIVE or FINAL
 	const isLive = statusCode === 2;
 	const isFinal = statusCode === 3;
 	const homeWins = isFinal && home.score > away.score;
 	const awayWins = isFinal && away.score > home.score;
 	const statusLabel = isLive ? 'LIVE' : 'FINAL';
-	const detail = isLive
-		? `Q${game.period} ${game.clock}`
-		: 'FT';
+
+	let detail = '';
+	if (isLive) {
+		detail = `Q${game.period} ${game.clock}`;
+	} else {
+		const d = new Date(game.startTime);
+		if (!isNaN(d.getTime())) {
+			detail = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+		}
+	}
 
 	return `
 	<div class="game-card">
@@ -129,158 +167,117 @@ function renderGameCard(game: any): string {
 
 // ---- RENDER: Spotlight card (jersey + stats) ----
 function renderSpotlightCard(player: any): string {
-	const name = player.name || `${player.firstName} ${player.lastName}`;
-	const team = [player.teamCity, player.teamName || player.team].filter(Boolean).join(' ') || 'Free Agent';
+	const name = `${player.firstName} ${player.lastName}`;
+	const team = player.team;
 	const number = player.jerseyNumber || '00';
 	const position = player.position || '';
+	const s = player.stats;
 
-	const s = player.seasonStats;
-	const stats = [
-		{ label: 'PTS', value: s?.pts?.toFixed(1) ?? '--', accent: false },
-		{ label: 'REB', value: s?.reb?.toFixed(1) ?? '--', accent: false },
-		{ label: 'AST', value: s?.ast?.toFixed(1) ?? '--', accent: false },
-		{ label: 'STL', value: s?.stl?.toFixed(1) ?? '--', accent: false },
-		{ label: 'BLK', value: s?.blk?.toFixed(1) ?? '--', accent: false },
-		{ label: 'FG%', value: s?.fgPct != null ? (s.fgPct * 100).toFixed(1) : '--', accent: true },
+	const statItems = [
+		{ label: 'PTS', value: s.pts.toFixed(1), accent: false },
+		{ label: 'REB', value: s.reb.toFixed(1), accent: false },
+		{ label: 'AST', value: s.ast.toFixed(1), accent: false },
+		{ label: 'STL', value: s.stl.toFixed(1), accent: false },
+		{ label: 'BLK', value: s.blk.toFixed(1), accent: false },
+		{ label: 'FG%', value: (s.fgPct * 100).toFixed(1), accent: true },
 	];
-	const statsHtml = stats.map(st =>
+	const statsHtml = statItems.map(st =>
 		`<div class="sl-stat">
 			<div class="sl-stat-value${st.accent ? ' accent' : ''}">${st.value}</div>
 			<div class="sl-stat-label">${st.label}</div>
 		</div>`
 	).join('');
 
-	const gp = s?.gp ?? '--';
-	const min = s?.min != null ? (typeof s.min === 'number' ? s.min.toFixed(1) : s.min) : '--';
-
 	return `
 	<div class="sl-card">
 		<div class="sl-jersey-wrap">
-			<svg class="sl-jersey" viewBox="0 0 140 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+			<svg class="sl-jersey" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
 				<defs>
-					<linearGradient id="jGrad" x1="20" y1="0" x2="120" y2="170" gradientUnits="userSpaceOnUse">
+					<linearGradient id="jGrad" x1="15" y1="0" x2="145" y2="160" gradientUnits="userSpaceOnUse">
 						<stop offset="0%" stop-color="#E8450E"/>
 						<stop offset="100%" stop-color="#A12B08"/>
 					</linearGradient>
 				</defs>
-				<path d="M45 8 C55 2,85 2,95 8 L122 30 L110 45 L95 32 L95 160 L45 160 L45 32 L30 45 L18 30 Z"
+				<path d="M38 10 C50 3,110 3,122 10 L148 35 L134 52 L118 36 L118 152 L42 152 L42 36 L26 52 L12 35 Z"
 					fill="url(#jGrad)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
-				<path d="M55 9 L70 26 L85 9" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-				<line x1="45" y1="55" x2="95" y2="55" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-				<text x="70" y="118" text-anchor="middle" font-size="50" font-weight="800" fill="rgba(255,255,255,0.85)" font-family="system-ui,sans-serif" letter-spacing="-2">${number}</text>
+				<path d="M52 11 L80 30 L108 11" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+				<line x1="42" y1="55" x2="118" y2="55" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+				<text x="80" y="112" text-anchor="middle" font-size="44" font-weight="800" fill="rgba(255,255,255,0.85)" font-family="system-ui,sans-serif" letter-spacing="-1">${number}</text>
 			</svg>
 		</div>
 		<div class="sl-info">
 			<div class="sl-name">${name}</div>
 			<div class="sl-team">${team}${position ? '  |  ' + position : ''}</div>
-			${s ? `<div class="sl-season">${s.season} SEASON AVERAGES  ·  ${gp} GP  ·  ${min} MPG</div>` : ''}
+			<div class="sl-season">${s.season} SEASON AVERAGES  ·  ${s.gp} GP  ·  ${s.min.toFixed(1)} MPG</div>
 			<div class="sl-stats">${statsHtml}</div>
 		</div>
 	</div>`;
 }
 
-// ---- RENDER: Player search card (sin stats, ahorra API calls) ----
+// ---- RENDER: Player search card ----
 function renderSearchCard(player: any): string {
-	const nameParts = player.name?.split(' ') || ['?', '?'];
-	const initials = `${nameParts[0][0]}${(nameParts[1] || '?')[0]}`.toUpperCase();
-	const team = player.team || 'Free Agent';
-	const number = player.jerseyNumber ? `  |  #${player.jerseyNumber}` : '';
-	const position = player.position ? `  |  ${player.position}` : '';
+	const initials = `${player.firstName[0]}${player.lastName[0]}`.toUpperCase();
+	const name = `${player.firstName} ${player.lastName}`;
 
 	return `
 	<div class="player-card">
 		<div class="player-header">
 			<div class="player-avatar">${initials}</div>
 			<div>
-				<div class="player-name">${player.name}</div>
-				<div class="player-meta">${team}${number}${position}</div>
+				<div class="player-name">${name}</div>
+				<div class="player-meta">${player.team}  |  #${player.jerseyNumber}  |  ${player.position}</div>
 			</div>
+		</div>
+		<div class="stats-grid">
+			<div class="stat-box"><div class="stat-label">PTS</div><div class="stat-value">${player.stats.pts.toFixed(1)}</div></div>
+			<div class="stat-box"><div class="stat-label">REB</div><div class="stat-value">${player.stats.reb.toFixed(1)}</div></div>
+			<div class="stat-box"><div class="stat-label">AST</div><div class="stat-value">${player.stats.ast.toFixed(1)}</div></div>
+			<div class="stat-box"><div class="stat-label">FG%</div><div class="stat-value accent">${(player.stats.fgPct * 100).toFixed(1)}</div></div>
 		</div>
 	</div>`;
 }
 
-// ---- FETCH: Today's games ----
-async function loadGames() {
-	try {
-		const res = await fetch('/api/scoreboard');
-		const data = await res.json();
-		const games = data.games || [];
+// ---- LOAD: Games (from server-embedded data) ----
+function loadGames() {
+	const el = document.getElementById('games-data');
+	const games = JSON.parse(el?.dataset.games || '[]');
 
-		if (games.length === 0) {
-			gamesGrid.innerHTML = '<div class="empty-state">No games scheduled today</div>';
-			return;
-		}
-
-		gamesGrid.innerHTML = games.map(renderGameCard).join('');
-	} catch {
-		gamesGrid.innerHTML = '<div class="empty-state error">Failed to load games</div>';
+	if (games.length === 0) {
+		gamesGrid.innerHTML = '<div class="empty-state">No games scheduled today</div>';
+		return;
 	}
+	gamesGrid.innerHTML = games.map(renderGameCard).join('');
 }
 
-// ---- FETCH: Player spotlight ----
-async function loadSpotlight() {
-	try {
-		const starNames = [
-			'LeBron James', 'Stephen Curry', 'Nikola Jokic',
-			'Luka Doncic', 'Giannis Antetokounmpo', 'Jayson Tatum',
-			'Anthony Edwards', 'Victor Wembanyama',
-		];
-		const name = starNames[Math.floor(Math.random() * starNames.length)];
-
-		spotlightCard.innerHTML = `<div class="loading"><div class="spinner"></div><span>Loading ${name}...</span></div>`;
-
-		const searchRes = await fetch(`/api/players?search=${encodeURIComponent(name)}`);
-		const searchData = await searchRes.json();
-		const found = searchData.players?.[0];
-		if (!found) throw new Error('Player not found');
-
-		const res = await fetchRetry(`/api/player-stats/${found.id}`);
-		const data = await res.json();
-
-		if (data.player) {
-			spotlightCard.innerHTML = renderPlayerCard(data.player);
-		} else {
-			spotlightCard.innerHTML = '<div class="empty-state small">Stats not available right now</div>';
-		}
-	} catch {
-		spotlightCard.innerHTML = '<div class="empty-state small">Could not load spotlight. <button class="retry-btn" onclick="window.__retrySpotlight();">Retry</button></div>';
-	}
+// ---- LOAD: Spotlight (random top player, 0 API calls) ----
+function loadSpotlight() {
+	const topPlayers = players.filter(p => p.stats.pts >= 20);
+	const pick = topPlayers[Math.floor(Math.random() * topPlayers.length)];
+	spotlightCard.innerHTML = renderSpotlightCard(pick);
 }
-// Expose retry globally for the button
-(window as any).__retrySpotlight = loadSpotlight;
 
-// ---- FETCH: Search players ----
-async function searchPlayers(query: string) {
+// ---- SEARCH: Players (instant, 0 API calls) ----
+function doSearch(query: string) {
 	if (query.length < 2) {
 		playerResults.innerHTML = '<div class="empty-state">Type at least 2 characters</div>';
 		return;
 	}
 
-	playerResults.innerHTML = '<div class="loading"><div class="spinner"></div><span>Searching players...</span></div>';
-
-	try {
-		const res = await fetch(`/api/players?search=${encodeURIComponent(query)}`);
-		const data = await res.json();
-		const players = data.players || [];
-
-		if (players.length === 0) {
-			playerResults.innerHTML = '<div class="empty-state">No players found</div>';
-			return;
-		}
-
-		// Mostrar info básica (nombre/equipo/posición) sin cargar stats individuales
-		playerResults.innerHTML = players.slice(0, 10).map((p: any) => renderSearchCard(p)).join('');
-	} catch {
-		playerResults.innerHTML = '<div class="empty-state error">Search failed — try again in a moment</div>';
+	const results = findPlayers(query, 10);
+	if (results.length === 0) {
+		playerResults.innerHTML = '<div class="empty-state">No players found</div>';
+		return;
 	}
+
+	playerResults.innerHTML = results.map(renderSearchCard).join('');
 }
 
 // ---- Search debounce ----
 playerSearch.addEventListener('input', () => {
 	if (searchTimeout) clearTimeout(searchTimeout);
 	searchTimeout = setTimeout(() => {
-		searchPlayers(playerSearch.value.trim());
-	}, 500);
+		doSearch(playerSearch.value.trim());
+	}, 200); // 200ms — la búsqueda es instantánea así que no necesita 500ms
 });
 
 // ---- Init ----
@@ -503,31 +500,6 @@ loadSpotlight();
 	}
 
 	/* Shared states */
-	.loading {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.6vw;
-		padding: 2vw;
-		color: var(--cs-text-hint);
-		font-size: 0.8vw;
-	}
-
-	.spinner {
-		width: 1.2vw;
-		height: 1.2vw;
-		min-width: 16px;
-		min-height: 16px;
-		border: 2px solid var(--cs-border);
-		border-top-color: var(--cs-accent);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to { transform: rotate(360deg); }
-	}
-
 	.empty-state {
 		text-align: center;
 		padding: 2vw;
@@ -536,31 +508,94 @@ loadSpotlight();
 		grid-column: 1 / -1;
 	}
 
-	.empty-state.small {
-		padding: 1.2vw;
-		font-size: 0.75vw;
-	}
-
 	.empty-state.error {
 		color: var(--cs-error);
 	}
 
-	.retry-btn {
-		display: inline-block;
-		margin-top: 0.5vw;
-		padding: 0.3vw 1vw;
-		background: var(--cs-accent-bg);
-		border: 0.5px solid var(--cs-accent-border);
-		border-radius: 0.4vw;
-		color: var(--cs-accent);
-		font-size: 0.7vw;
-		font-weight: 500;
-		cursor: pointer;
-		font-family: inherit;
-		transition: background 0.2s ease;
+	/* Spotlight card */
+	.sl-card {
+		display: flex;
+		align-items: center;
+		gap: 2.5vw;
+		background: var(--cs-card-bg);
+		border: 0.5px solid var(--cs-border);
+		border-radius: 0.7vw;
+		padding: 2vw 3vw;
+		transition: background 0.3s ease, border-color 0.3s ease;
 	}
 
-	.retry-btn:hover {
-		background: rgba(232,69,14,0.25);
+	.sl-card:hover {
+		border-color: var(--cs-border-hover);
+	}
+
+	.sl-jersey-wrap {
+		flex-shrink: 0;
+		filter: drop-shadow(0 4px 20px rgba(232, 69, 14, 0.25));
+	}
+
+	.sl-jersey {
+		width: 10vw;
+		min-width: 120px;
+		max-width: 180px;
+		aspect-ratio: 1;
+	}
+
+	.sl-info {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.sl-name {
+		font-size: 1.6vw;
+		font-weight: 600;
+		color: var(--cs-text-primary);
+		transition: color 0.3s ease;
+		margin-bottom: 0.2vw;
+	}
+
+	.sl-team {
+		font-size: 0.8vw;
+		color: var(--cs-text-secondary);
+		margin-bottom: 0.8vw;
+	}
+
+	.sl-season {
+		font-size: 0.6vw;
+		color: var(--cs-text-muted);
+		letter-spacing: 1px;
+		margin-bottom: 0.8vw;
+		font-weight: 500;
+	}
+
+	.sl-stats {
+		display: grid;
+		grid-template-columns: repeat(6, 1fr);
+		gap: 0.5vw;
+	}
+
+	.sl-stat {
+		text-align: center;
+		background: var(--cs-stat-bg);
+		border-radius: 0.5vw;
+		padding: 0.6vw 0.3vw;
+		transition: background 0.3s ease;
+	}
+
+	.sl-stat-value {
+		font-size: 1.2vw;
+		font-weight: 600;
+		color: var(--cs-text-primary);
+		transition: color 0.3s ease;
+	}
+
+	.sl-stat-value.accent {
+		color: var(--cs-accent);
+	}
+
+	.sl-stat-label {
+		font-size: 0.55vw;
+		color: var(--cs-text-muted);
+		letter-spacing: 0.5px;
+		margin-top: 0.2vw;
 	}
 </style>
