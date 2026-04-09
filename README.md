@@ -57,7 +57,7 @@ Aplicacion web de seguimiento de la NBA en tiempo real. Permite visualizar los p
 | Vercel              | Plataforma de deploy (SSR con adapter `@astrojs/vercel`) |
 | NBA CDN             | Fuente de datos para el scoreboard en vivo             |
 
-### Estilos y diseno
+### Estilos y diseño
 
 - Variables CSS custom para temas (`--cs-bg`, `--cs-accent`, etc.).
 - Transiciones suaves en cambios de tema y hover states.
