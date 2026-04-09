@@ -23,7 +23,7 @@
 
 <script>
 
-//  ANIMACIÓN — PELOTA CON TRAYECTORIA BÉZIER CÚBICA + SFX
+//  ANIMACIÓN — PELOTA CON TRAYECTORIA BÉZIER CÚBICA
 
 
 const ball = document.getElementById('ball-animation') as HTMLElement;
@@ -65,130 +65,13 @@ if (ball && ballSvg && pageContent && logoEl) {
 	const P1 = { x: vw * 0.06, y: vh * 0.65 };
 	const P2 = { x: vw * 0.04, y: vh * 0.08 };
 
-	// ---- ESTADO INICIAL DE LA PELOTA ----
+	// ESTADO INICIAL DE LA PELOTA 
 	ball.style.transform = `translate(${P0.x - INITIAL_SIZE / 2}px, ${P0.y - INITIAL_SIZE / 2}px)`;
 	ballSvg.style.width = `${INITIAL_SIZE}px`;
 	ballSvg.style.height = `${INITIAL_SIZE}px`;
 	ball.style.opacity = '1';
 
-	// ======================
-	//  SFX — Web Audio API
-	// ======================
-	let audioCtx: AudioContext | null = null;
-	let audioUnlocked = false;
-
-	function initAudio() {
-		try {
-			audioCtx = new AudioContext();
-			// En refresh, el context queda "suspended" por política del browser.
-			// Intentamos resume inmediato (a veces funciona).
-			if (audioCtx.state === 'suspended') {
-				audioCtx.resume();
-			}
-			// Listener de fallback: si el usuario toca/clickea la página,
-			// desbloqueamos el audio para el impact sound al menos.
-			const unlockAudio = () => {
-				if (audioCtx && audioCtx.state === 'suspended') {
-					audioCtx.resume();
-				}
-				audioUnlocked = true;
-				document.removeEventListener('click', unlockAudio);
-				document.removeEventListener('touchstart', unlockAudio);
-				document.removeEventListener('keydown', unlockAudio);
-			};
-			document.addEventListener('click', unlockAudio, { once: true });
-			document.addEventListener('touchstart', unlockAudio, { once: true });
-			document.addEventListener('keydown', unlockAudio, { once: true });
-		} catch {
-			audioCtx = null;
-		}
-	}
-
-	// Swoosh: ruido blanco filtrado con barrido de frecuencia
-	async function playSwoosh() {
-		if (!audioCtx) return;
-		// Intentar desbloquear antes de reproducir
-		if (audioCtx.state === 'suspended') {
-			try { await audioCtx.resume(); } catch { /* silently fail */ }
-		}
-		if (audioCtx.state !== 'running') return;
-		const duration = 0.9;
-		const bufferSize = audioCtx.sampleRate * duration;
-		const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-		const data = buffer.getChannelData(0);
-
-		for (let i = 0; i < bufferSize; i++) {
-			data[i] = Math.random() * 2 - 1;
-		}
-
-		const source = audioCtx.createBufferSource();
-		source.buffer = buffer;
-
-		const filter = audioCtx.createBiquadFilter();
-		filter.type = 'bandpass';
-		filter.Q.value = 1.5;
-		filter.frequency.setValueAtTime(300, audioCtx.currentTime);
-		filter.frequency.exponentialRampToValueAtTime(2500, audioCtx.currentTime + duration * 0.4);
-		filter.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + duration);
-
-		const gain = audioCtx.createGain();
-		gain.gain.setValueAtTime(0, audioCtx.currentTime);
-		gain.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 0.06);
-		gain.gain.setValueAtTime(0.18, audioCtx.currentTime + duration * 0.3);
-		gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-
-		source.connect(filter);
-		filter.connect(gain);
-		gain.connect(audioCtx.destination);
-		source.start();
-	}
-
-	// Impacto sutil al llegar: "tok" de pelota
-	async function playImpact() {
-		if (!audioCtx) return;
-		if (audioCtx.state === 'suspended') {
-			try { await audioCtx.resume(); } catch { /* silently fail */ }
-		}
-		if (audioCtx.state !== 'running') return;
-		const t = audioCtx.currentTime;
-
-		const osc = audioCtx.createOscillator();
-		osc.type = 'sine';
-		osc.frequency.setValueAtTime(180, t);
-		osc.frequency.exponentialRampToValueAtTime(60, t + 0.12);
-
-		const oscGain = audioCtx.createGain();
-		oscGain.gain.setValueAtTime(0.22, t);
-		oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-
-		osc.connect(oscGain);
-		oscGain.connect(audioCtx.destination);
-		osc.start(t);
-		osc.stop(t + 0.15);
-
-		const noiseDur = 0.05;
-		const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * noiseDur, audioCtx.sampleRate);
-		const d = buf.getChannelData(0);
-		for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-
-		const noiseSrc = audioCtx.createBufferSource();
-		noiseSrc.buffer = buf;
-
-		const hpf = audioCtx.createBiquadFilter();
-		hpf.type = 'highpass';
-		hpf.frequency.value = 2000;
-
-		const noiseGain = audioCtx.createGain();
-		noiseGain.gain.setValueAtTime(0.12, t);
-		noiseGain.gain.exponentialRampToValueAtTime(0.001, t + noiseDur);
-
-		noiseSrc.connect(hpf);
-		hpf.connect(noiseGain);
-		noiseGain.connect(audioCtx.destination);
-		noiseSrc.start(t);
-	}
-
-	// ================================
+		// ================================
 	//  CURVA BÉZIER CÚBICA — B(t)
 	// ================================
 	function cubicBezier(t: number, p0: number, p1: number, p2: number, p3: number): number {
@@ -206,14 +89,10 @@ if (ball && ballSvg && pageContent && logoEl) {
 	// ================================
 	//  LOOP DE ANIMACIÓN
 	// ================================
-	initAudio();
 	let startTime: number | null = null;
 
 	function animateFrame(timestamp: number) {
-		if (!startTime) {
-			startTime = timestamp;
-			playSwoosh();
-		}
+		if (!startTime) startTime = timestamp;
 
 		const elapsed = timestamp - startTime;
 		const rawT = Math.min(elapsed / FLIGHT_DURATION, 1);
@@ -239,8 +118,6 @@ if (ball && ballSvg && pageContent && logoEl) {
 		} else {
 			ballSvg.style.transform = 'rotate(0deg)';
 			ballSvg.style.filter = 'none';
-
-			playImpact();
 
 			ball.animate(
 				[{ opacity: 1 }, { opacity: 0 }],
