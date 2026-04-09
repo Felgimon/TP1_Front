@@ -22,9 +22,9 @@
 </div>
 
 <script>
+import gsap from 'gsap';
 
-//  ANIMACIÓN — PELOTA CON TRAYECTORIA BÉZIER CÚBICA
-
+// ANIMACIÓN — PELOTA CON TRAYECTORIA BÉZIER CÚBICA (GSAP)
 
 const ball = document.getElementById('ball-animation') as HTMLElement;
 const ballSvg = document.getElementById('ball-svg') as HTMLElement;
@@ -34,103 +34,72 @@ const logoEl = pageContent?.querySelector('.courtside-logo') as HTMLElement;
 if (ball && ballSvg && pageContent && logoEl) {
 
 	// ---- CONFIG ----
-	const INITIAL_SIZE    = 780;    // px — bien grande, "en tu cara"
-	const FLIGHT_DURATION = 1200;   // ms — duración del vuelo
-	const SPIN_DEGREES    = -720;   // rotación total (2 vueltas exactas → termina en 0°)
+	const INITIAL_SIZE = 780;
+	const SPIN_DEGREES = -720;
 
 	// ---- POSICIONES ----
 	const vw = window.innerWidth;
 	const vh = window.innerHeight;
 
-	// Inicio: centro de pantalla
 	const P0 = { x: vw * 0.50, y: vh * 0.50 };
 
-	// Final: centro del logo en el header
 	const logoRect = logoEl.getBoundingClientRect();
-	const P3 = {
-		x: logoRect.left + logoRect.width / 2,
-		y: logoRect.top + logoRect.height / 2
-	};
+	const P3 = { x: logoRect.left + logoRect.width / 2, y: logoRect.top + logoRect.height / 2 };
 
-	// Tamaño final = tamaño real del SVG dentro del logo
 	const logoSvg = logoEl.querySelector('svg');
 	const finalSize = logoSvg
 		? Math.max(logoSvg.getBoundingClientRect().width, logoSvg.getBoundingClientRect().height)
 		: Math.max(logoRect.width, logoRect.height);
 
-	// Puntos de control para la curva Bézier cúbica:
-	// La pelota arranca al centro, se va hacia la IZQUIERDA
-	// y abajo, recorre el lado izquierdo, y sube en curva
-	// hasta llegar al logo en el header.
+	// Puntos de control Bézier: centro → izquierda-abajo → izquierda-arriba → logo
 	const P1 = { x: vw * 0.06, y: vh * 0.65 };
 	const P2 = { x: vw * 0.04, y: vh * 0.08 };
 
-	// ESTADO INICIAL DE LA PELOTA 
-	ball.style.transform = `translate(${P0.x - INITIAL_SIZE / 2}px, ${P0.y - INITIAL_SIZE / 2}px)`;
-	ballSvg.style.width = `${INITIAL_SIZE}px`;
-	ballSvg.style.height = `${INITIAL_SIZE}px`;
-	ball.style.opacity = '1';
-
-		// ================================
-	//  CURVA BÉZIER CÚBICA — B(t)
-	// ================================
-	function cubicBezier(t: number, p0: number, p1: number, p2: number, p3: number): number {
+	// ---- BÉZIER CÚBICA ----
+	function bezier(t: number, p0: number, p1: number, p2: number, p3: number): number {
 		const mt = 1 - t;
-		return mt * mt * mt * p0
-			+ 3 * mt * mt * t * p1
-			+ 3 * mt * t * t * p2
-			+ t * t * t * p3;
+		return mt * mt * mt * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t * t * t * p3;
 	}
 
-	function easeOutQuart(t: number): number {
-		return 1 - Math.pow(1 - t, 4);
-	}
+	// ---- ESTADO INICIAL ----
+	gsap.set(ball, { x: P0.x - INITIAL_SIZE / 2, y: P0.y - INITIAL_SIZE / 2, opacity: 1 });
+	gsap.set(ballSvg, { width: INITIAL_SIZE, height: INITIAL_SIZE });
 
-	// ================================
-	//  LOOP DE ANIMACIÓN
-	// ================================
-	let startTime: number | null = null;
+	// ---- TIMELINE ----
+	const progress = { t: 0 };
 
-	function animateFrame(timestamp: number) {
-		if (!startTime) startTime = timestamp;
+	gsap.timeline()
+		// Vuelo Bézier: 1.2s con easeOutQuart
+		.to(progress, {
+			t: 1,
+			duration: 1.2,
+			ease: 'power4.out',
+			onUpdate() {
+				const { t } = progress;
+				const x = bezier(t, P0.x, P1.x, P2.x, P3.x);
+				const y = bezier(t, P0.y, P1.y, P2.y, P3.y);
+				const size = INITIAL_SIZE + (finalSize - INITIAL_SIZE) * t;
+				const shadowFade = Math.max(0, 1 - t * 1.1);
 
-		const elapsed = timestamp - startTime;
-		const rawT = Math.min(elapsed / FLIGHT_DURATION, 1);
-		const t = easeOutQuart(rawT);
-
-		const currentX = cubicBezier(t, P0.x, P1.x, P2.x, P3.x);
-		const currentY = cubicBezier(t, P0.y, P1.y, P2.y, P3.y);
-
-		const currentSize = INITIAL_SIZE + (finalSize - INITIAL_SIZE) * t;
-		const rotation = SPIN_DEGREES * t;
-
-		const shadowOpacity = (0.6 * Math.max(0, 1 - t * 1.1)).toFixed(2);
-		const shadowBlur    = (14 * Math.max(0, 1 - t * 1.1)).toFixed(1);
-
-		ball.style.transform = `translate(${currentX - currentSize / 2}px, ${currentY - currentSize / 2}px)`;
-		ballSvg.style.width  = `${currentSize}px`;
-		ballSvg.style.height = `${currentSize}px`;
-		ballSvg.style.transform = `rotate(${rotation}deg)`;
-		ballSvg.style.filter = `drop-shadow(0 4px ${shadowBlur}px rgba(232, 69, 14, ${shadowOpacity}))`;
-
-		if (rawT < 1) {
-			requestAnimationFrame(animateFrame);
-		} else {
-			ballSvg.style.transform = 'rotate(0deg)';
-			ballSvg.style.filter = 'none';
-
-			ball.animate(
-				[{ opacity: 1 }, { opacity: 0 }],
-				{ duration: 150, fill: 'forwards', easing: 'ease-in' }
-			).onfinish = () => {
-				ball.style.display = 'none';
-			};
-
-			pageContent.style.opacity = '1';
-		}
-	}
-
-	requestAnimationFrame(animateFrame);
+				gsap.set(ball, { x: x - size / 2, y: y - size / 2 });
+				gsap.set(ballSvg, {
+					width: size,
+					height: size,
+					rotation: SPIN_DEGREES * t,
+					filter: `drop-shadow(0 4px ${(14 * shadowFade).toFixed(1)}px rgba(232,69,14,${(0.6 * shadowFade).toFixed(2)}))`,
+				});
+			},
+		})
+		// Reset rotación + limpiar sombra
+		.set(ballSvg, { rotation: 0, filter: 'none' })
+		// Fade out pelota + fade in contenido (simultáneos)
+		.to(ball, {
+			opacity: 0,
+			duration: 0.15,
+			ease: 'power1.in',
+			onComplete: () => { ball.style.display = 'none'; },
+		})
+		.to(pageContent, { opacity: 1, duration: 0.45 }, '<');
 
 } else {
 	const pc = document.getElementById('page-content');
@@ -157,6 +126,5 @@ if (ball && ballSvg && pageContent && logoEl) {
 
 	#page-content {
 		opacity: 0;
-		transition: opacity 450ms ease;
 	}
 </style>
